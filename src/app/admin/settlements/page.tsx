@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase/config";
-import { collection, query, onSnapshot, doc, updateDoc, orderBy } from "firebase/firestore";
+import { collection, query, onSnapshot, doc, updateDoc, orderBy, deleteDoc } from "firebase/firestore";
 import { format } from "date-fns";
-import { Check, X, Eye } from "lucide-react";
+import { Check, X, Eye, Trash2 } from "lucide-react";
 import { getApprovedUsers, UserBasicInfo, Settlement } from "@/lib/firebase/firestore";
 import toast from "react-hot-toast";
 
@@ -93,8 +93,13 @@ export default function AdminSettlementsPage() {
                    </button>
                  </>
                )}
-               <button className="w-8 h-8 rounded-full bg-white/10 text-white/50 flex items-center justify-center hover:bg-white/20 transition-all">
-                 <Eye className="w-4 h-4" />
+               <button onClick={async () => {
+                  if(confirm("Administratively delete this settlement record?")) {
+                     await deleteDoc(doc(db, "settlements", s.id));
+                     toast.success("Deleted settlement");
+                  }
+               }} className="w-8 h-8 rounded-full bg-red-500/20 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all border border-red-500/30" title="Delete Settlement">
+                 <Trash2 className="w-4 h-4" />
                </button>
             </div>
           </div>

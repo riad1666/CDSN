@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { Bell, TrendingUp, TrendingDown, DollarSign, User as UserIcon, Plus, Lock } from "lucide-react";
+import { Bell, TrendingUp, TrendingDown, DollarSign, User as UserIcon, Plus, Lock, ChefHat } from "lucide-react";
 import { subscribeToNotices, subscribeToExpenses, subscribeToSettlements, getApprovedUsers, Notice, Expense, Settlement, UserBasicInfo } from "@/lib/firebase/firestore";
 import { format } from "date-fns";
 import Link from "next/link";
-import { doc, updateDoc } from "firebase/firestore";
+import { doc, updateDoc, collection, query, where, orderBy, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 
 import { AddExpenseModal } from "@/components/AddExpenseModal";
@@ -23,6 +23,7 @@ export default function DashboardPage() {
   const [isExpenseOpen, setExpenseOpen] = useState(false);
   const [isSettleOpen, setSettleOpen] = useState(false);
   const [isPasswordOpen, setPasswordOpen] = useState(false);
+  const [cookingDate, setCookingDate] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubNotices = subscribeToNotices((data) => setNotices(data));
@@ -35,10 +36,20 @@ export default function DashboardPage() {
       setUsersMap(map);
     });
 
+    let unsubCooking: () => void = () => {};
+    if (userData) {
+       const pq = query(collection(db, "cookingSchedules"), where("assignedUser", "==", userData.uid), orderBy("date", "asc"));
+       unsubCooking = onSnapshot(pq, (snap) => {
+          const upcoming = snap.docs.map(d => d.data().date).find(d => new Date(d) >= new Date(new Date().setHours(0,0,0,0)));
+          setCookingDate(upcoming || null);
+       });
+    }
+
     return () => {
       unsubNotices();
       unsubExpenses();
       unsubSettlements();
+      unsubCooking();
     };
   }, []);
 
@@ -108,7 +119,22 @@ export default function DashboardPage() {
         <h2 className="text-2xl font-bold text-white">Notice Board</h2>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-         {notices.length === 0 && <div className="col-span-3 text-white/40 text-sm">No active notices at the moment.</div>}
+         {cookingDate && (
+            <div className={`p-5 rounded-2xl border border-orange-500/30 bg-orange-500/10 backdrop-blur-md`}>
+              <div className="flex items-center justify-between mb-3">
+                <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full text-white uppercase tracking-wide bg-orange-500`}>
+                  YOUR COOKING DUTY
+                </span>
+                <span className="text-xs text-white/50">
+                  {cookingDate}
+                </span>
+              </div>
+              <h3 className="text-white font-semibold mb-2 flex items-center gap-2"><ChefHat className="w-5 h-5 text-orange-400"/> Reminder</h3>
+              <p className="text-sm text-white/70 leading-relaxed">You are scheduled for cooking duty on {format(new Date(cookingDate), "EEEE, MMMM do")}. Please be prepared!</p>
+            </div>
+         )}
+         
+         {notices.length === 0 && !cookingDate && <div className="col-span-3 text-white/40 text-sm">No active notices at the moment.</div>}
          {notices.map(notice => {
             const theme = getNoticeTheme(notice.type);
             return (
