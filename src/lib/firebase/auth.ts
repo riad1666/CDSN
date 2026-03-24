@@ -19,12 +19,13 @@ export interface RegisterData {
 export const registerUser = async (data: RegisterData, imageFile: File) => {
   if (!data.password) throw new Error("Password is required");
 
-  // Create auth user FIRST so we have permission for Firestore & Storage
+  console.log("STEP 1: Creating auth user...");
   const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
   const user = userCredential.user;
+  console.log("STEP 2: Auth complete. UID:", user.uid);
 
   try {
-    // Check if student ID is unique
+    console.log("STEP 3: Checking Firestore for unique student ID...");
     const usersRef = collection(db, "users");
     const q = query(usersRef, where("studentId", "==", data.studentId));
     const querySnapshot = await getDocs(q);
@@ -32,11 +33,12 @@ export const registerUser = async (data: RegisterData, imageFile: File) => {
       throw new Error("Student ID is already registered.");
     }
 
-    // Dynamic import to avoid circular dependencies if any
+    console.log("STEP 4: Uniqueness verified. Uploading Image to Storage...");
     const { uploadProfileImage } = await import("./storage");
     const imageUrl = await uploadProfileImage(imageFile, data.studentId);
+    console.log("STEP 5: Image uploaded!", imageUrl);
 
-    // Create user document in Firestore
+    console.log("STEP 6: Saving document to Firestore...");
     const userDocRef = doc(db, "users", user.uid);
     await setDoc(userDocRef, {
       name: data.name,
@@ -50,11 +52,11 @@ export const registerUser = async (data: RegisterData, imageFile: File) => {
       createdAt: new Date().toISOString(),
     });
 
-    // Sign out immediately because they are "pending"
+    console.log("STEP 7: Document saved. Signing out.");
     await firebaseSignOut(auth);
     return user;
   } catch (error) {
-    // Rollback auth user creation if database or storage fails
+    console.error("FIREBASE ERROR ENCOUNTERED:", error);
     await user.delete().catch(() => {});
     await firebaseSignOut(auth).catch(() => {});
     throw error;
