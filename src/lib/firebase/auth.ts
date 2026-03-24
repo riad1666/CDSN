@@ -2,6 +2,9 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+  updatePassword
 } from "firebase/auth";
 import { doc, setDoc, getDocs, collection, query, where } from "firebase/firestore";
 import { auth, db } from "./config";
@@ -12,6 +15,7 @@ export interface RegisterData {
   whatsapp: string;
   room: string;
   studentId: string;
+  dob: string;
   password?: string;
   profileImage?: string;
 }
@@ -46,6 +50,7 @@ export const registerUser = async (data: RegisterData, imageFile: File) => {
       whatsapp: data.whatsapp,
       room: data.room,
       studentId: data.studentId,
+      dob: data.dob,
       profileImage: imageUrl,
       role: "user",
       status: "pending",
@@ -143,8 +148,7 @@ export const loginUser = async (loginId: string, password: string) => {
     // Check if banned
     if (userData.bannedUntil && new Date(userData.bannedUntil) > new Date()) {
       await firebaseSignOut(auth);
-      const banRelease = new Date(userData.bannedUntil).toLocaleDateString();
-      throw new Error(`Your account has been banned until ${banRelease}.`);
+      throw new Error("You're Temporary BAN for violating rules.");
     }
 
     if (userData.status === "pending") {
@@ -166,4 +170,16 @@ export const loginUser = async (loginId: string, password: string) => {
 
 export const logoutUser = async () => {
   return firebaseSignOut(auth);
+};
+
+export const changePasswordUser = async (oldPassword: string, newPassword: string) => {
+  const user = auth.currentUser;
+  if (!user || !user.email) throw new Error("No authenticated user");
+
+  // Re-authenticate
+  const credential = EmailAuthProvider.credential(user.email, oldPassword);
+  await reauthenticateWithCredential(user, credential);
+
+  // Update password
+  await updatePassword(user, newPassword);
 };

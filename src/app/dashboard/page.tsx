@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { Bell, TrendingUp, TrendingDown, DollarSign, User as UserIcon, Plus } from "lucide-react";
+import { Bell, TrendingUp, TrendingDown, DollarSign, User as UserIcon, Plus, Lock } from "lucide-react";
 import { subscribeToNotices, subscribeToExpenses, subscribeToSettlements, getApprovedUsers, Notice, Expense, Settlement, UserBasicInfo } from "@/lib/firebase/firestore";
 import { format } from "date-fns";
 import Link from "next/link";
@@ -11,6 +11,7 @@ import { db } from "@/lib/firebase/config";
 
 import { AddExpenseModal } from "@/components/AddExpenseModal";
 import { SettlePaymentModal } from "@/components/SettlePaymentModal";
+import { ChangePasswordModal } from "@/components/ChangePasswordModal";
 
 export default function DashboardPage() {
   const { userData } = useAuth();
@@ -21,6 +22,7 @@ export default function DashboardPage() {
   const [balanceTab, setBalanceTab] = useState<'receive' | 'owe'>('receive');
   const [isExpenseOpen, setExpenseOpen] = useState(false);
   const [isSettleOpen, setSettleOpen] = useState(false);
+  const [isPasswordOpen, setPasswordOpen] = useState(false);
 
   useEffect(() => {
     const unsubNotices = subscribeToNotices((data) => setNotices(data));
@@ -199,7 +201,7 @@ export default function DashboardPage() {
           {/* Tabs */}
           <div className="flex bg-white/5 border border-white/10 rounded-xl p-1 mb-6">
             <button 
-               className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all ${balanceTab === 'receive' ? 'bg-gradient-to-r from-emerald-500 to-emerald-400 shadow-lg text-white' : 'text-white/50 hover:text-white'}`}
+               className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all ${balanceTab === 'receive' ? 'bg-linear-to-r from-emerald-500 to-emerald-400 shadow-lg text-white' : 'text-white/50 hover:text-white'}`}
                onClick={() => setBalanceTab('receive')}
             >
               You'll Receive ({receiveList.length})
@@ -258,6 +260,9 @@ export default function DashboardPage() {
              <button onClick={() => setSettleOpen(true)} className="glass-button-secondary bg-white/5 border border-white/10 w-full text-md py-4 shadow-none hover:bg-white/10">
                <Plus className="w-5 h-5" /> Settle Payment
              </button>
+             <button onClick={() => setPasswordOpen(true)} className="glass-button-secondary bg-white/5 border border-white/10 w-full text-md py-4 shadow-none hover:bg-white/10">
+               <Lock className="w-4 h-4" /> Change Password
+             </button>
           </div>
 
           {/* Recent Activity Timeline Plugin */}
@@ -270,7 +275,7 @@ export default function DashboardPage() {
                  {activityList.map((act, index) => (
                    <div key={index} className="flex gap-4">
                      <div className="relative mt-1 flex flex-col items-center">
-                       <div className={`w-2.5 h-2.5 rounded-full ${act.type === 'expense' ? 'bg-primary shadow-[0_0_8px_theme(colors.primary.DEFAULT)]' : 'bg-orange-400'}`}></div>
+                       <div className={`w-2.5 h-2.5 rounded-full ${act.type === 'expense' ? 'bg-primary shadow-[0_0_8px_var(--color-primary)]' : 'bg-orange-400'}`}></div>
                        {index !== activityList.length - 1 && <div className="w-px h-full bg-white/10 my-1"></div>}
                      </div>
                      <div className="flex-1 pb-2">
@@ -304,6 +309,7 @@ export default function DashboardPage() {
       
       <AddExpenseModal isOpen={isExpenseOpen} onClose={() => setExpenseOpen(false)} />
       <SettlePaymentModal isOpen={isSettleOpen} onClose={() => setSettleOpen(false)} />
+      <ChangePasswordModal isOpen={isPasswordOpen} onClose={() => setPasswordOpen(false)} />
     </div>
   );
 }

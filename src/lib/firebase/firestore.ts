@@ -28,6 +28,7 @@ export interface UserBasicInfo {
   profileImage: string;
   room: string;
   whatsapp: string;
+  dob?: string;
 }
 
 export const getApprovedUsers = async (): Promise<UserBasicInfo[]> => {
@@ -36,7 +37,7 @@ export const getApprovedUsers = async (): Promise<UserBasicInfo[]> => {
   const users: UserBasicInfo[] = [];
   snapshot.forEach(doc => {
     const data = doc.data();
-    users.push({ uid: doc.id, name: data.name, profileImage: data.profileImage, room: data.room, whatsapp: data.whatsapp });
+    users.push({ uid: doc.id, name: data.name, profileImage: data.profileImage, room: data.room, whatsapp: data.whatsapp, dob: data.dob });
   });
   return users;
 };

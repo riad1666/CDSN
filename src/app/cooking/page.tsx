@@ -7,6 +7,7 @@ import { db } from "@/lib/firebase/config";
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval } from "date-fns";
 import { getApprovedUsers, UserBasicInfo } from "@/lib/firebase/firestore";
+import toast from "react-hot-toast";
 
 interface CookingSchedule {
   id: string;
@@ -86,9 +87,44 @@ export default function CookingPage() {
                const schedule = schedules.find(s => s.date === dateStr);
                const user = schedule ? usersMap[schedule.assignedUser] : null;
                
+               const bDayMonthDay = format(day, "MM-dd");
+               const bdayUsers = Object.values(usersMap).filter(u => u.dob && u.dob.slice(5) === bDayMonthDay);
+               const isBirthday = bdayUsers.length > 0;
+               
                return (
-                 <div key={day.toString()} className={`h-20 md:h-28 rounded-xl p-2 relative flex flex-col items-center justify-center border ${schedule ? 'bg-indigo-500/20 border-indigo-500/40 shadow-[0_0_15px_rgba(99,102,241,0.2)]' : 'bg-white/5 border-transparent hover:bg-white/10'} transition-all`}>
-                   <span className="absolute top-2 left-2 md:left-3 text-xs md:text-sm font-bold text-white/60">{format(day, "d")}</span>
+                 <div 
+                   key={day.toString()} 
+                   onClick={() => {
+                      if (isBirthday) {
+                         bdayUsers.forEach(bu => {
+                            toast.custom((t) => (
+                               <div className={`${t.visible ? 'scale-100 opacity-100' : 'scale-95 opacity-0'} transition-all duration-300 max-w-sm w-full bg-[#232048] shadow-2xl rounded-xl pointer-events-auto flex border border-white/10 overflow-hidden`}>
+                                  <div className="flex-1 w-0 p-4">
+                                     <div className="flex items-center">
+                                        <div className="shrink-0">
+                                           {bu.profileImage ? (
+                                              <img className="h-12 w-12 rounded-full object-cover border-2 border-pink-500" src={bu.profileImage} alt="" />
+                                           ) : (
+                                              <div className="h-12 w-12 rounded-full bg-white/10 border-2 border-pink-500" />
+                                           )}
+                                        </div>
+                                        <div className="ml-4 flex-1">
+                                           <p className="text-sm font-bold text-white flex items-center gap-2">Happy Birthday! <span className="text-xl">🎂</span></p>
+                                           <p className="text-xs font-semibold text-pink-400 mt-0.5">{bu.name} <span className="text-white/40 font-normal border-l border-white/20 pl-2 ml-2">Room {bu.room}</span></p>
+                                        </div>
+                                     </div>
+                                  </div>
+                               </div>
+                            ), { duration: 5000 });
+                         });
+                      }
+                   }}
+                   className={`h-20 md:h-28 rounded-xl p-2 relative flex flex-col items-center justify-center border ${schedule ? 'bg-indigo-500/20 border-indigo-500/40 shadow-[0_0_15px_rgba(99,102,241,0.2)]' : 'bg-white/5 border-transparent hover:bg-white/10'} ${isBirthday ? 'cursor-pointer ring-2 ring-pink-500/50 hover:bg-pink-500/10' : ''} transition-all`}
+                 >
+                   <span className={`absolute top-1 left-2 md:top-2 md:left-3 text-xs md:text-sm font-bold ${isBirthday ? 'text-pink-400' : 'text-white/60'}`}>{format(day, "d")}</span>
+                   {isBirthday && (
+                      <span className="absolute top-1 right-1 md:top-2 md:right-2 text-lg md:text-xl drop-shadow-md animate-pulse">🎂</span>
+                   )}
                    {user && (
                      <div className="mt-3 md:mt-6 flex flex-col items-center">
                        {user.profileImage ? (

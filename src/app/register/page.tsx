@@ -16,6 +16,7 @@ export default function RegisterPage() {
     room: "",
     password: "",
     confirmPassword: "",
+    dob: "",
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -120,16 +121,29 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-white/50 uppercase tracking-wider">Email Address *</label>
-            <input 
-              type="email" 
-              required
-              placeholder="your.email@example.com" 
-              className="w-full glass-input"
-              value={formData.email}
-              onChange={e => setFormData({...formData, email: e.target.value})}
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-white/50 uppercase tracking-wider">Email Address *</label>
+              <input 
+                type="email" 
+                required
+                placeholder="your.email@example.com" 
+                className="w-full glass-input"
+                value={formData.email}
+                onChange={e => setFormData({...formData, email: e.target.value})}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-white/50 uppercase tracking-wider">Date of Birth (Original) *</label>
+              <input 
+                type="date" 
+                required
+                className="w-full glass-input"
+                value={formData.dob}
+                onChange={e => setFormData({...formData, dob: e.target.value})}
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
