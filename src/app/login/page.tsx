@@ -5,11 +5,12 @@ import { loginUser } from "@/lib/firebase/auth";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import toast from "react-hot-toast";
-import { Loader2, Lock, User as UserIcon } from "lucide-react";
+import { Loader2, Eye, EyeOff } from "lucide-react";
 
 export default function LoginPage() {
   const [loginId, setLoginId] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
@@ -45,29 +46,32 @@ export default function LoginPage() {
         <form onSubmit={handleLogin} className="w-full space-y-5">
           <div className="space-y-1">
             <label className="text-xs font-semibold text-white/50 uppercase tracking-wider">Login ID</label>
-            <div className="relative">
-              <UserIcon className="absolute left-4 top-3.5 w-5 h-5 text-white/40" />
-              <input 
-                type="text" 
-                placeholder="Email / Student ID" 
-                className="w-full glass-input pl-12"
-                value={loginId}
-                onChange={e => setLoginId(e.target.value)}
-              />
-            </div>
+            <input 
+              type="text" 
+              placeholder="Email / Student ID" 
+              className="w-full glass-input"
+              value={loginId}
+              onChange={e => setLoginId(e.target.value)}
+            />
           </div>
           
           <div className="space-y-1">
             <label className="text-xs font-semibold text-white/50 uppercase tracking-wider">Password</label>
             <div className="relative">
-              <Lock className="absolute left-4 top-3.5 w-5 h-5 text-white/40" />
               <input 
-                type="password" 
+                type={showPassword ? "text" : "password"} 
                 placeholder="Enter your password" 
-                className="w-full glass-input pl-12"
+                className="w-full glass-input pr-12"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
               />
+              <button 
+                type="button" 
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-4 top-3.5 text-white/40 hover:text-white/70"
+              >
+                {showPassword ? <EyeOff className="w-5 h-5"/> : <Eye className="w-5 h-5"/>}
+              </button>
             </div>
           </div>
           

@@ -5,7 +5,7 @@ import { registerUser } from "@/lib/firebase/auth";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import toast from "react-hot-toast";
-import { Loader2, Upload, User as UserIcon, Mail, Phone, Home, Hash, Lock } from "lucide-react";
+import { Loader2, Upload, Eye, EyeOff } from "lucide-react";
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -19,6 +19,8 @@ export default function RegisterPage() {
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
@@ -33,6 +35,9 @@ export default function RegisterPage() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!/^\d{9}$/.test(formData.studentId)) {
+      return toast.error("Student ID must be exactly 9 digits");
+    }
     if (formData.password !== formData.confirmPassword) {
       return toast.error("Passwords do not match");
     }
@@ -90,81 +95,66 @@ export default function RegisterPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div className="space-y-1">
               <label className="text-xs font-semibold text-white/50 uppercase tracking-wider">Full Name *</label>
-              <div className="relative">
-                <UserIcon className="absolute left-4 top-3.5 w-5 h-5 text-white/40" />
-                <input 
-                  type="text" 
-                  required
-                  placeholder="Enter your name" 
-                  className="w-full glass-input pl-12"
-                  value={formData.name}
-                  onChange={e => setFormData({...formData, name: e.target.value})}
-                />
-              </div>
+              <input 
+                type="text" 
+                required
+                placeholder="Enter your name" 
+                className="w-full glass-input"
+                value={formData.name}
+                onChange={e => setFormData({...formData, name: e.target.value})}
+              />
               <p className="text-[10px] text-white/40 ml-1">Cannot be edited later</p>
             </div>
 
             <div className="space-y-1">
               <label className="text-xs font-semibold text-white/50 uppercase tracking-wider">Student ID *</label>
-              <div className="relative">
-                <Hash className="absolute left-4 top-3.5 w-5 h-5 text-white/40" />
-                <input 
-                  type="text" 
-                  required
-                  placeholder="e.g., 2021001234" 
-                  className="w-full glass-input pl-12"
-                  value={formData.studentId}
-                  onChange={e => setFormData({...formData, studentId: e.target.value})}
-                />
-              </div>
-              <p className="text-[10px] text-white/40 ml-1">Must be unique, cannot edit later</p>
+              <input 
+                type="text" 
+                required
+                placeholder="e.g. 202100123" 
+                className="w-full glass-input"
+                value={formData.studentId}
+                onChange={e => setFormData({...formData, studentId: e.target.value})}
+              />
+              <p className="text-[10px] text-white/40 ml-1">Must be unique, 9 digits</p>
             </div>
           </div>
 
           <div className="space-y-1">
             <label className="text-xs font-semibold text-white/50 uppercase tracking-wider">Email Address *</label>
-            <div className="relative">
-              <Mail className="absolute left-4 top-3.5 w-5 h-5 text-white/40" />
-              <input 
-                type="email" 
-                required
-                placeholder="your.email@example.com" 
-                className="w-full glass-input pl-12"
-                value={formData.email}
-                onChange={e => setFormData({...formData, email: e.target.value})}
-              />
-            </div>
+            <input 
+              type="email" 
+              required
+              placeholder="your.email@example.com" 
+              className="w-full glass-input"
+              value={formData.email}
+              onChange={e => setFormData({...formData, email: e.target.value})}
+            />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div className="space-y-1">
               <label className="text-xs font-semibold text-white/50 uppercase tracking-wider">WhatsApp Number *</label>
-              <div className="relative">
-                <Phone className="absolute left-4 top-3.5 w-5 h-5 text-white/40" />
-                <input 
-                  type="tel" 
-                  required
-                  placeholder="+82 10 1234 5678" 
-                  className="w-full glass-input pl-12"
-                  value={formData.whatsapp}
-                  onChange={e => setFormData({...formData, whatsapp: e.target.value})}
-                />
-              </div>
+              <input 
+                type="tel" 
+                required
+                placeholder="+82 10 1234 5678" 
+                className="w-full glass-input"
+                value={formData.whatsapp}
+                onChange={e => setFormData({...formData, whatsapp: e.target.value})}
+              />
             </div>
 
             <div className="space-y-1">
               <label className="text-xs font-semibold text-white/50 uppercase tracking-wider">Room Number *</label>
-              <div className="relative">
-                <Home className="absolute left-4 top-3.5 w-5 h-5 text-white/40" />
-                <input 
-                  type="text" 
-                  required
-                  placeholder="e.g. 201" 
-                  className="w-full glass-input pl-12"
-                  value={formData.room}
-                  onChange={e => setFormData({...formData, room: e.target.value})}
-                />
-              </div>
+              <input 
+                type="text" 
+                required
+                placeholder="e.g. 201" 
+                className="w-full glass-input"
+                value={formData.room}
+                onChange={e => setFormData({...formData, room: e.target.value})}
+              />
             </div>
           </div>
           
@@ -172,31 +162,38 @@ export default function RegisterPage() {
             <div className="space-y-1">
               <label className="text-xs font-semibold text-white/50 uppercase tracking-wider">Password *</label>
               <div className="relative">
-                <Lock className="absolute left-4 top-3.5 w-5 h-5 text-white/40" />
                 <input 
-                  type="password" 
+                  type={showPassword ? "text" : "password"} 
                   required
                   placeholder="Create a password" 
-                  className="w-full glass-input pl-12"
+                  className="w-full glass-input pr-12"
                   value={formData.password}
                   onChange={e => setFormData({...formData, password: e.target.value})}
                 />
+                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-3.5 text-white/40 hover:text-white/70">
+                  {showPassword ? <EyeOff className="w-5 h-5"/> : <Eye className="w-5 h-5"/>}
+                </button>
               </div>
             </div>
 
             <div className="space-y-1">
               <label className="text-xs font-semibold text-white/50 uppercase tracking-wider">Confirm Password *</label>
               <div className="relative">
-                <Lock className="absolute left-4 top-3.5 w-5 h-5 text-white/40" />
                 <input 
-                  type="password" 
+                  type={showConfirmPassword ? "text" : "password"} 
                   required
                   placeholder="Confirm password" 
-                  className="w-full glass-input pl-12"
+                  className={`w-full glass-input pr-12 ${formData.password && formData.confirmPassword && formData.password !== formData.confirmPassword ? 'border-rose-500/50 focus:ring-rose-500/50' : ''}`}
                   value={formData.confirmPassword}
                   onChange={e => setFormData({...formData, confirmPassword: e.target.value})}
                 />
+                <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-4 top-3.5 text-white/40 hover:text-white/70">
+                  {showConfirmPassword ? <EyeOff className="w-5 h-5"/> : <Eye className="w-5 h-5"/>}
+                </button>
               </div>
+              {formData.password && formData.confirmPassword && formData.password !== formData.confirmPassword && (
+                <p className="text-[10px] text-rose-400 font-medium ml-1">Passwords do not match</p>
+              )}
             </div>
           </div>
           

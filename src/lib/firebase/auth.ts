@@ -139,6 +139,14 @@ export const loginUser = async (loginId: string, password: string) => {
   
   if (!statusSnapshot.empty) {
     const userData = statusSnapshot.docs[0].data();
+    
+    // Check if banned
+    if (userData.bannedUntil && new Date(userData.bannedUntil) > new Date()) {
+      await firebaseSignOut(auth);
+      const banRelease = new Date(userData.bannedUntil).toLocaleDateString();
+      throw new Error(`Your account has been banned until ${banRelease}.`);
+    }
+
     if (userData.status === "pending") {
       await firebaseSignOut(auth);
       throw new Error("Your account is under review. Please wait for admin approval.");
@@ -147,6 +155,10 @@ export const loginUser = async (loginId: string, password: string) => {
       await firebaseSignOut(auth);
       throw new Error("Your account was rejected. Please contact the admin.");
     }
+  } else {
+    // If no document exists, they were deleted by the admin
+    await firebaseSignOut(auth);
+    throw new Error("User record not found. Your account may have been permanently deleted.");
   }
 
   return credential;

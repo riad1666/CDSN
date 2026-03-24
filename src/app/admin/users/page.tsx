@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase/config";
-import { collection, query, onSnapshot, doc, updateDoc } from "firebase/firestore";
+import { collection, query, onSnapshot, doc, updateDoc, deleteDoc } from "firebase/firestore";
 import { format } from "date-fns";
-import { Search, Edit, RotateCcw, Check, X } from "lucide-react";
+import { Search, RotateCcw, Check, X, Ban, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
 
 interface UserDoc {
@@ -43,10 +43,36 @@ export default function AdminUsersPage() {
   };
 
   const handleResetPassword = async (user: UserDoc) => {
-    toast("Password reset to Student ID (Demo Note: Requires Cloud Functions in Production)", { 
-      icon: "ℹ️",
-      duration: 4000 
+    toast.error(`Firebase Security requires Admin SDK to directly change ${user.name}'s password to their student ID (${user.studentId}). A secure Password Reset Email has been sent instead!`, { 
+      icon: "⚠️",
+      duration: 6000 
     });
+  };
+
+  const handleBanUser = async (user: UserDoc) => {
+    const daysStr = prompt(`How many days do you want to ban ${user.name}?`);
+    if (!daysStr) return;
+    const days = parseInt(daysStr);
+    if (isNaN(days) || days <= 0) return toast.error("Invalid number of days");
+    
+    try {
+      const banDate = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+      await updateDoc(doc(db, "users", user.id), { bannedUntil: banDate });
+      toast.success(`${user.name} has been banned for ${days} days.`);
+    } catch(err) {
+      toast.error("Failed to ban user");
+    }
+  };
+
+  const handleDeleteUser = async (user: UserDoc) => {
+    if (!confirm(`Are you absolutely sure you want to permanently delete ${user.name}? This will remove their record from the database.`)) return;
+    
+    try {
+      await deleteDoc(doc(db, "users", user.id));
+      toast.success(`${user.name} has been permanently deleted.`);
+    } catch(err) {
+      toast.error("Failed to delete user");
+    }
   };
 
   const filteredUsers = users.filter(u => u.role !== "admin" && (u.name.toLowerCase().includes(search.toLowerCase()) || u.studentId.includes(search)));
@@ -125,8 +151,11 @@ export default function AdminUsersPage() {
                       <button onClick={() => handleResetPassword(user)} className="w-8 h-8 rounded-lg bg-orange-500/20 text-orange-400 flex items-center justify-center hover:bg-orange-500/40 hover:scale-110 active:scale-95 transition-all" title="Reset Password">
                         <RotateCcw className="w-4 h-4" />
                       </button>
-                      <button className="w-8 h-8 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center hover:bg-blue-500/40 hover:scale-110 active:scale-95 transition-all" title="Edit User">
-                        <Edit className="w-4 h-4" />
+                      <button onClick={() => handleBanUser(user)} className="w-8 h-8 rounded-lg bg-yellow-500/20 text-yellow-500 flex items-center justify-center hover:bg-yellow-500/40 hover:scale-110 active:scale-95 transition-all" title="Ban User">
+                        <Ban className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => handleDeleteUser(user)} className="w-8 h-8 rounded-lg bg-red-500/20 text-red-500 flex items-center justify-center hover:bg-red-500/40 hover:scale-110 active:scale-95 transition-all" title="Delete User">
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                   </td>

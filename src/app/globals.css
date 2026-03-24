@@ -60,7 +60,7 @@
     box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.5);
   }
   .glass-input::placeholder {
-    color: rgba(255, 255, 255, 0.4);
+    color: rgba(255, 255, 255, 0.2);
   }
   .glass-button {
     background: linear-gradient(to right, #623ce1, #8534e8, #d62eb5);
