@@ -1,0 +1,223 @@
+"use client";
+
+import { useState, useRef } from "react";
+import { registerUser } from "@/lib/firebase/auth";
+import { uploadProfileImage } from "@/lib/firebase/storage";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import toast from "react-hot-toast";
+import { Loader2, Upload, User as UserIcon, Mail, Phone, Home, Hash, Lock } from "lucide-react";
+
+export default function RegisterPage() {
+  const [formData, setFormData] = useState({
+    name: "",
+    studentId: "",
+    email: "",
+    whatsapp: "",
+    room: "",
+    password: "",
+    confirmPassword: "",
+  });
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setImageFile(file);
+      setImagePreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (formData.password !== formData.confirmPassword) {
+      return toast.error("Passwords do not match");
+    }
+    if (!imageFile) {
+      return toast.error("Please upload a profile picture");
+    }
+
+    setLoading(true);
+    try {
+      const imageUrl = await uploadProfileImage(imageFile, formData.studentId);
+      
+      await registerUser({
+        ...formData,
+        profileImage: imageUrl
+      });
+
+      toast.success("Account created! Please wait for admin approval.");
+      router.push("/login");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to create account.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center p-4 py-12">
+      <div className="glass-panel w-full max-w-xl p-8 flex flex-col items-center">
+        {/* Logo */}
+        <img src="/logo.png" alt="CDS Logo" className="w-20 h-20 object-contain mb-6" />
+        
+        <h1 className="text-3xl font-bold text-white mb-2">Create Account</h1>
+        <p className="text-white/60 text-sm mb-8">Join Convergence Digital Society</p>
+        
+        <form onSubmit={handleRegister} className="w-full space-y-5">
+          {/* Profile Image Upload */}
+          <div className="flex flex-col items-center mb-6">
+            <div 
+              onClick={() => fileInputRef.current?.click()}
+              className="relative w-24 h-24 shadow-lg rounded-full border border-primary/40 flex items-center justify-center cursor-pointer overflow-hidden group hover:border-primary transition-all bg-white/5"
+            >
+              {imagePreview ? (
+                <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+              ) : (
+                <Upload className="w-8 h-8 text-primary/50 group-hover:text-primary transition-colors" />
+              )}
+              <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <Upload className="w-5 h-5 text-white" />
+              </div>
+            </div>
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              onChange={handleImageChange} 
+              accept="image/*" 
+              className="hidden" 
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-white/50 uppercase tracking-wider">Full Name *</label>
+              <div className="relative">
+                <UserIcon className="absolute left-4 top-3.5 w-5 h-5 text-white/40" />
+                <input 
+                  type="text" 
+                  required
+                  placeholder="Enter your name" 
+                  className="w-full glass-input pl-12"
+                  value={formData.name}
+                  onChange={e => setFormData({...formData, name: e.target.value})}
+                />
+              </div>
+              <p className="text-[10px] text-white/40 ml-1">Cannot be edited later</p>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-white/50 uppercase tracking-wider">Student ID *</label>
+              <div className="relative">
+                <Hash className="absolute left-4 top-3.5 w-5 h-5 text-white/40" />
+                <input 
+                  type="text" 
+                  required
+                  placeholder="e.g., 2021001234" 
+                  className="w-full glass-input pl-12"
+                  value={formData.studentId}
+                  onChange={e => setFormData({...formData, studentId: e.target.value})}
+                />
+              </div>
+              <p className="text-[10px] text-white/40 ml-1">Must be unique, cannot edit later</p>
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-white/50 uppercase tracking-wider">Email Address *</label>
+            <div className="relative">
+              <Mail className="absolute left-4 top-3.5 w-5 h-5 text-white/40" />
+              <input 
+                type="email" 
+                required
+                placeholder="your.email@example.com" 
+                className="w-full glass-input pl-12"
+                value={formData.email}
+                onChange={e => setFormData({...formData, email: e.target.value})}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-white/50 uppercase tracking-wider">WhatsApp Number *</label>
+              <div className="relative">
+                <Phone className="absolute left-4 top-3.5 w-5 h-5 text-white/40" />
+                <input 
+                  type="tel" 
+                  required
+                  placeholder="+82 10 1234 5678" 
+                  className="w-full glass-input pl-12"
+                  value={formData.whatsapp}
+                  onChange={e => setFormData({...formData, whatsapp: e.target.value})}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-white/50 uppercase tracking-wider">Room Number *</label>
+              <div className="relative">
+                <Home className="absolute left-4 top-3.5 w-5 h-5 text-white/40" />
+                <input 
+                  type="text" 
+                  required
+                  placeholder="e.g. 201" 
+                  className="w-full glass-input pl-12"
+                  value={formData.room}
+                  onChange={e => setFormData({...formData, room: e.target.value})}
+                />
+              </div>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-white/50 uppercase tracking-wider">Password *</label>
+              <div className="relative">
+                <Lock className="absolute left-4 top-3.5 w-5 h-5 text-white/40" />
+                <input 
+                  type="password" 
+                  required
+                  placeholder="Create a password" 
+                  className="w-full glass-input pl-12"
+                  value={formData.password}
+                  onChange={e => setFormData({...formData, password: e.target.value})}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-white/50 uppercase tracking-wider">Confirm Password *</label>
+              <div className="relative">
+                <Lock className="absolute left-4 top-3.5 w-5 h-5 text-white/40" />
+                <input 
+                  type="password" 
+                  required
+                  placeholder="Confirm password" 
+                  className="w-full glass-input pl-12"
+                  value={formData.confirmPassword}
+                  onChange={e => setFormData({...formData, confirmPassword: e.target.value})}
+                />
+              </div>
+            </div>
+          </div>
+          
+          <button type="submit" disabled={loading} className="w-full glass-button mt-6 text-lg">
+            {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : "Create Account"}
+          </button>
+        </form>
+        
+        <div className="mt-8 flex flex-col items-center gap-5 text-sm w-full">
+          <div className="w-full h-px bg-white/10"></div>
+          <div className="text-white/60">
+            Already have an account? <Link href="/login" className="text-primary hover:text-white hover:underline transition-all font-medium ml-1">Sign in</Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

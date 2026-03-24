@@ -1,0 +1,119 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { db } from "@/lib/firebase/config";
+import { collection, query, onSnapshot, doc, deleteDoc, orderBy } from "firebase/firestore";
+import { format } from "date-fns";
+import { Search, Edit, Trash2 } from "lucide-react";
+import { getApprovedUsers, UserBasicInfo, Expense } from "@/lib/firebase/firestore";
+import toast from "react-hot-toast";
+
+export default function AdminExpensesPage() {
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [usersMap, setUsersMap] = useState<Record<string, UserBasicInfo>>({});
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    getApprovedUsers().then(list => {
+      const map: Record<string, UserBasicInfo> = {};
+      list.forEach(u => map[u.uid] = u);
+      setUsersMap(map);
+    });
+
+    const q = query(collection(db, "expenses"), orderBy("date", "desc"));
+    const unsub = onSnapshot(q, (snapshot) => {
+      const data: Expense[] = [];
+      snapshot.forEach(doc => data.push({ id: doc.id, ...doc.data() } as Expense));
+      setExpenses(data);
+    });
+    return () => unsub();
+  }, []);
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this expense?")) return;
+    try {
+      await deleteDoc(doc(db, "expenses", id));
+      toast.success("Expense deleted");
+    } catch(err) {
+      toast.error("Failed to delete expense");
+    }
+  };
+
+  const filtered = expenses.filter(e => e.title.toLowerCase().includes(search.toLowerCase()));
+  const totalAmount = expenses.reduce((sum, e) => sum + e.amount, 0);
+
+  return (
+    <div className="space-y-6 animate-in fade-in duration-300">
+      <div>
+        <h2 className="text-2xl font-bold text-white mb-2">Expense Management</h2>
+        <p className="text-white/60 text-sm">View and manage all shared expenses</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="glass-card p-6 border border-white/5 bg-white/5">
+          <div className="text-sm font-medium text-white/50 mb-1">Total Expenses</div>
+          <div className="text-2xl font-bold text-white">₩{Math.round(totalAmount).toLocaleString()}</div>
+        </div>
+        <div className="glass-card p-6 border border-white/5 bg-white/5">
+          <div className="text-sm font-medium text-white/50 mb-1">Count</div>
+          <div className="text-2xl font-bold text-emerald-400">{expenses.length}</div>
+        </div>
+      </div>
+
+      <div className="glass-panel p-6 border-white/5">
+        <div className="relative mb-6 max-w-md">
+          <Search className="absolute left-4 top-3.5 w-5 h-5 text-white/40" />
+          <input 
+            type="text" 
+            placeholder="Search expenses by title..." 
+            className="w-full glass-input pl-12 bg-white/5 border-white/10"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse min-w-[700px]">
+            <thead>
+              <tr className="border-b border-white/10 text-white/50 text-xs uppercase tracking-wider">
+                <th className="pb-4 font-semibold pl-4">Title</th>
+                <th className="pb-4 font-semibold">Amount</th>
+                <th className="pb-4 font-semibold">Added By</th>
+                <th className="pb-4 font-semibold">Date</th>
+                <th className="pb-4 font-semibold text-right pr-4">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {filtered.map(exp => (
+                <tr key={exp.id} className="hover:bg-white/5 transition-colors group">
+                  <td className="py-4 pl-4 font-medium text-white text-sm">{exp.title}</td>
+                  <td className="py-4 font-bold text-white">₩{Math.round(exp.amount).toLocaleString()}</td>
+                  <td className="py-4 text-white/70 text-sm flex items-center gap-2">
+                    {usersMap[exp.paidBy]?.profileImage ? (
+                        <img src={usersMap[exp.paidBy].profileImage} className="w-6 h-6 rounded-full object-cover" />
+                    ) : null}
+                    {usersMap[exp.paidBy]?.name || "Unknown"}
+                  </td>
+                  <td className="py-4 text-white/70 text-sm">{exp.date ? format(new Date(exp.date), "yyyy-MM-dd") : "N/A"}</td>
+                  <td className="py-4 pr-4">
+                    <div className="flex items-center justify-end gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
+                      <button className="w-8 h-8 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center hover:bg-blue-500/40 hover:scale-110 active:scale-95 transition-all">
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => handleDelete(exp.id)} className="w-8 h-8 rounded-lg bg-rose-500/20 text-rose-400 flex items-center justify-center hover:bg-rose-500/40 hover:scale-110 active:scale-95 transition-all">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {filtered.length === 0 && (
+                <tr><td colSpan={5} className="text-center py-8 text-white/40 text-sm">No expenses found.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}

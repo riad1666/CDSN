@@ -1,26 +1,117 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --color-background: hsl(240 60% 5%);
+  --color-foreground: hsl(0 0% 100%);
+  --color-card: hsl(240 40% 12%); 
+  --color-card-foreground: hsl(0 0% 100%);
+  --color-card-border: hsl(240 50% 25%);
+  --color-primary: hsl(280 100% 60%); 
+  --color-primary-foreground: hsl(0 0% 100%);
+  --color-secondary: hsl(240 80% 60%);
+  --color-secondary-foreground: hsl(0 0% 100%);
+  --color-accent: hsl(320 100% 60%);
+  --color-accent-foreground: hsl(0 0% 100%);
+  --color-destructive: hsl(0 84.2% 60.2%);
+  --color-destructive-foreground: hsl(210 40% 98%);
+  --color-ring: hsl(280 100% 60%);
+  --radius: 1rem;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    min-height: 100vh;
+    position: relative;
+    overflow-x: hidden;
+    color: var(--color-foreground);
+    background: radial-gradient(circle at top left, rgba(76, 29, 149, 0.4), transparent 40%),
+                radial-gradient(circle at bottom right, rgba(30, 58, 138, 0.5), transparent 40%),
+                radial-gradient(circle at center, rgba(49, 46, 129, 0.3), transparent 60%),
+                #0b0b14; /* Deep dark base color */
+    background-attachment: fixed;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer utilities {
+  .glass-card {
+    background-color: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 1rem;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+  }
+  .glass-card-hover:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    transition: all 300ms;
+  }
+  .glass-input {
+    background-color: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 0.75rem;
+    padding: 0.75rem 1rem;
+    color: white;
+    backdrop-filter: blur(12px);
+    transition: all 300ms;
+  }
+  .glass-input:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.5);
+  }
+  .glass-input::placeholder {
+    color: rgba(255, 255, 255, 0.4);
+  }
+  .glass-button {
+    background: linear-gradient(to right, #623ce1, #8534e8, #d62eb5);
+    border-radius: 0.75rem;
+    padding: 0.75rem 1.5rem;
+    font-weight: 600;
+    color: white;
+    box-shadow: 0 10px 15px -3px rgba(88, 28, 135, 0.4);
+    transition: all 300ms;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+  .glass-button:hover {
+    box-shadow: 0 10px 15px -3px rgba(88, 28, 135, 0.6);
+    transform: translateY(-2px);
+  }
+  .glass-button:active {
+    transform: translateY(0);
+  }
+  .glass-button-secondary {
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 0.75rem;
+    padding: 0.75rem 1.5rem;
+    font-weight: 600;
+    color: white;
+    transition: all 300ms;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    backdrop-filter: blur(12px);
+  }
+  .glass-button-secondary:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+  }
+  .glass-panel {
+    background-color: rgba(26, 27, 46, 0.6);
+    backdrop-filter: blur(40px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 24px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  }
+  .text-gradient {
+    color: transparent;
+    background-clip: text;
+    -webkit-background-clip: text;
+    background-image: linear-gradient(to right, #60a5fa, #c084fc);
+  }
 }
