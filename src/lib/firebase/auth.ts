@@ -13,42 +13,52 @@ export interface RegisterData {
   room: string;
   studentId: string;
   password?: string;
-  profileImage: string;
+  profileImage?: string;
 }
 
-export const registerUser = async (data: RegisterData) => {
+export const registerUser = async (data: RegisterData, imageFile: File) => {
   if (!data.password) throw new Error("Password is required");
 
-  // Check if student ID is unique
-  const usersRef = collection(db, "users");
-  const q = query(usersRef, where("studentId", "==", data.studentId));
-  const querySnapshot = await getDocs(q);
-  if (!querySnapshot.empty) {
-    throw new Error("Student ID is already registered.");
-  }
-
-  // Create auth user
+  // Create auth user FIRST so we have permission for Firestore & Storage
   const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
   const user = userCredential.user;
 
-  // Create user document in Firestore
-  const userDocRef = doc(db, "users", user.uid);
-  await setDoc(userDocRef, {
-    name: data.name,
-    email: data.email,
-    whatsapp: data.whatsapp,
-    room: data.room,
-    studentId: data.studentId,
-    profileImage: data.profileImage || "",
-    role: "user",
-    status: "pending",
-    createdAt: new Date().toISOString(),
-  });
+  try {
+    // Check if student ID is unique
+    const usersRef = collection(db, "users");
+    const q = query(usersRef, where("studentId", "==", data.studentId));
+    const querySnapshot = await getDocs(q);
+    if (!querySnapshot.empty) {
+      throw new Error("Student ID is already registered.");
+    }
 
-  // Sign out immediately because they are "pending"
-  await firebaseSignOut(auth);
+    // Dynamic import to avoid circular dependencies if any
+    const { uploadProfileImage } = await import("./storage");
+    const imageUrl = await uploadProfileImage(imageFile, data.studentId);
 
-  return user;
+    // Create user document in Firestore
+    const userDocRef = doc(db, "users", user.uid);
+    await setDoc(userDocRef, {
+      name: data.name,
+      email: data.email,
+      whatsapp: data.whatsapp,
+      room: data.room,
+      studentId: data.studentId,
+      profileImage: imageUrl,
+      role: "user",
+      status: "pending",
+      createdAt: new Date().toISOString(),
+    });
+
+    // Sign out immediately because they are "pending"
+    await firebaseSignOut(auth);
+    return user;
+  } catch (error) {
+    // Rollback auth user creation if database or storage fails
+    await user.delete().catch(() => {});
+    await firebaseSignOut(auth).catch(() => {});
+    throw error;
+  }
 };
 
 export const loginUser = async (loginId: string, password: string) => {

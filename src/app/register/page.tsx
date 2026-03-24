@@ -2,7 +2,6 @@
 
 import { useState, useRef } from "react";
 import { registerUser } from "@/lib/firebase/auth";
-import { uploadProfileImage } from "@/lib/firebase/storage";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import toast from "react-hot-toast";
@@ -43,12 +42,7 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
-      const imageUrl = await uploadProfileImage(imageFile, formData.studentId);
-      
-      await registerUser({
-        ...formData,
-        profileImage: imageUrl
-      });
+      await registerUser(formData, imageFile);
 
       toast.success("Account created! Please wait for admin approval.");
       router.push("/login");
