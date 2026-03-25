@@ -28,6 +28,7 @@ export interface UserBasicInfo {
   profileImage: string;
   room: string;
   whatsapp: string;
+  role: "user" | "admin";
   dob?: string;
 }
 
@@ -37,7 +38,15 @@ export const getApprovedUsers = async (): Promise<UserBasicInfo[]> => {
   const users: UserBasicInfo[] = [];
   snapshot.forEach(doc => {
     const data = doc.data();
-    users.push({ uid: doc.id, name: data.name, profileImage: data.profileImage, room: data.room, whatsapp: data.whatsapp, dob: data.dob });
+    users.push({ 
+      uid: doc.id, 
+      name: data.name, 
+      profileImage: data.profileImage, 
+      room: data.room, 
+      whatsapp: data.whatsapp, 
+      role: data.role,
+      dob: data.dob 
+    });
   });
   return users;
 };

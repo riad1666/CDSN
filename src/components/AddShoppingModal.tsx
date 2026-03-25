@@ -47,7 +47,7 @@ export function AddShoppingModal({ isOpen, onClose }: { isOpen: boolean, onClose
       }
 
       const allUsers = await getApprovedUsers();
-      const splitUids = allUsers.map(u => u.uid);
+      const splitUids = allUsers.filter(u => u.role === "user").map(u => u.uid);
       
       await addDoc(collection(db, "expenses"), {
         title: `Shopping: ${title}`,

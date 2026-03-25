@@ -32,7 +32,7 @@ export function AddExpenseModal({ isOpen, onClose }: { isOpen: boolean, onClose:
     setLoading(true);
     try {
       const allUsers = await getApprovedUsers();
-      const splitBetween = allUsers.map(u => u.uid);
+      const splitBetween = allUsers.filter(u => u.role === "user").map(u => u.uid);
       
       if (splitBetween.length === 0) {
         splitBetween.push(userData!.uid);
