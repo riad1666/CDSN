@@ -50,8 +50,9 @@ export default function AdminCookingPage() {
     e.preventDefault();
     if (!selectedDate || !selectedUser) return toast.error("Select date and user");
     
-    const existing = schedules.find(s => s.date === selectedDate);
-    if (existing) return toast.error("Date already assigned. Please delete the existing assignment first.");
+    const existing = schedules.filter(s => s.date === selectedDate);
+    if (existing.length >= 2) return toast.error("Maximum 2 users allowed per day. Please delete an existing assignment first.");
+    if (existing.some(s => s.assignedUser === selectedUser)) return toast.error("User already assigned to this date.");
     
     setLoading(true);
     try {
