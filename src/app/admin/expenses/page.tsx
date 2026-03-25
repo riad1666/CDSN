@@ -64,27 +64,22 @@ export default function AdminExpensesPage() {
   };
 
   const fixLegacyExpenses = async () => {
-    if (!confirm("This will remove all Admins from existing expense splits to fix 'Owe' balances. Are you sure?")) return;
+    if (!confirm("This will RE-SPLIT all existing expenses among all CURRENTLY approved normal users. Proceed to fix your balances?")) return;
     setFixing(true);
     try {
       const allUsers = await getApprovedUsers();
-      const adminUids = allUsers.filter(u => u.role === "admin").map(u => u.uid);
+      const userUids = allUsers.filter(u => u.role === "user").map(u => u.uid);
       
+      if (userUids.length === 0) return toast.error("No approved users found.");
+
       let count = 0;
       for (const exp of expenses) {
-        const hasAdmin = exp.splitBetween.some(uid => adminUids.includes(uid));
-        if (hasAdmin) {
-          const newSplit = exp.splitBetween.filter(uid => !adminUids.includes(uid));
-          // Only update if there are users left to split with
-          if (newSplit.length > 0) {
-            await updateDoc(doc(db, "expenses", exp.id), { splitBetween: newSplit });
-            count++;
-          }
-        }
+        await updateDoc(doc(db, "expenses", exp.id), { splitBetween: userUids });
+        count++;
       }
-      toast.success(`Successfully fixed ${count} expenses!`);
+      toast.success(`Recalculated ${count} expenses among ${userUids.length} residents!`);
     } catch (err) {
-      toast.error("Failed to run migration.");
+      toast.error("Failed to run global sync.");
     } finally {
       setFixing(false);
     }
@@ -109,7 +104,7 @@ export default function AdminExpensesPage() {
            className="glass-button py-2 px-4 shadow-none bg-indigo-500/20 text-indigo-300 border-indigo-500/30 flex items-center gap-2 hover:bg-indigo-500/30 transition-all text-xs"
         >
           {fixing ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-          Sync & Fix Legacy Admin Split
+          Sync & Full Refresh All Balances
         </button>
       </div>
 
