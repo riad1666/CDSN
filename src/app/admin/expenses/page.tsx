@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase/config";
-import { collection, query, onSnapshot, doc, deleteDoc, orderBy } from "firebase/firestore";
+import { collection, query, onSnapshot, doc, deleteDoc, orderBy, updateDoc } from "firebase/firestore";
 import { format } from "date-fns";
-import { Search, Edit, Trash2, DollarSign, ShoppingCart } from "lucide-react";
+import { Search, Edit, Trash2, DollarSign, ShoppingCart, CheckCircle2, Loader2 } from "lucide-react";
 import { getApprovedUsers, UserBasicInfo, Expense } from "@/lib/firebase/firestore";
 import toast from "react-hot-toast";
 interface ShoppingItem {
@@ -22,6 +22,7 @@ export default function AdminExpensesPage() {
   const [usersMap, setUsersMap] = useState<Record<string, UserBasicInfo>>({});
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<'expenses'|'shopping'>('expenses');
+  const [fixing, setFixing] = useState(false);
 
   useEffect(() => {
     getApprovedUsers().then(list => {
@@ -62,6 +63,33 @@ export default function AdminExpensesPage() {
     }
   };
 
+  const fixLegacyExpenses = async () => {
+    if (!confirm("This will remove all Admins from existing expense splits to fix 'Owe' balances. Are you sure?")) return;
+    setFixing(true);
+    try {
+      const allUsers = await getApprovedUsers();
+      const adminUids = allUsers.filter(u => u.role === "admin").map(u => u.uid);
+      
+      let count = 0;
+      for (const exp of expenses) {
+        const hasAdmin = exp.splitBetween.some(uid => adminUids.includes(uid));
+        if (hasAdmin) {
+          const newSplit = exp.splitBetween.filter(uid => !adminUids.includes(uid));
+          // Only update if there are users left to split with
+          if (newSplit.length > 0) {
+            await updateDoc(doc(db, "expenses", exp.id), { splitBetween: newSplit });
+            count++;
+          }
+        }
+      }
+      toast.success(`Successfully fixed ${count} expenses!`);
+    } catch (err) {
+      toast.error("Failed to run migration.");
+    } finally {
+      setFixing(false);
+    }
+  };
+
   const filtered = activeTab === 'expenses' 
     ? expenses.filter(e => e.title.toLowerCase().includes(search.toLowerCase()))
     : shopping.filter(e => e.title.toLowerCase().includes(search.toLowerCase()));
@@ -70,9 +98,19 @@ export default function AdminExpensesPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
-      <div>
-        <h2 className="text-2xl font-bold text-white mb-2">Expense Management</h2>
-        <p className="text-white/60 text-sm">View and manage all shared expenses</p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-white mb-2">Expense Management</h2>
+          <p className="text-white/60 text-sm">View and manage all shared expenses</p>
+        </div>
+        <button 
+           onClick={fixLegacyExpenses} 
+           disabled={fixing}
+           className="glass-button py-2 px-4 shadow-none bg-indigo-500/20 text-indigo-300 border-indigo-500/30 flex items-center gap-2 hover:bg-indigo-500/30 transition-all text-xs"
+        >
+          {fixing ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+          Sync & Fix Legacy Admin Split
+        </button>
       </div>
 
       <div className="flex bg-white/5 border border-white/10 rounded-xl p-1 w-fit mb-6">
