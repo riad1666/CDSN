@@ -6,6 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase/config";
 import { collection, addDoc, getDocs, query, where, updateDoc, doc } from "firebase/firestore";
 import { uploadReceipts } from "@/lib/firebase/storage";
+import { getApprovedUsers } from "@/lib/firebase/firestore";
 import toast from "react-hot-toast";
 
 export function AddExpenseModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
@@ -30,10 +31,8 @@ export function AddExpenseModal({ isOpen, onClose }: { isOpen: boolean, onClose:
 
     setLoading(true);
     try {
-      const q = query(collection(db, "users"), where("status", "==", "approved"), where("role", "==", "user"));
-      const snapshot = await getDocs(q);
-      const splitBetween: string[] = [];
-      snapshot.forEach(docSnap => splitBetween.push(docSnap.id));
+      const allUsers = await getApprovedUsers();
+      const splitBetween = allUsers.map(u => u.uid);
       
       if (splitBetween.length === 0) {
         splitBetween.push(userData!.uid);
@@ -65,7 +64,7 @@ export function AddExpenseModal({ isOpen, onClose }: { isOpen: boolean, onClose:
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <div className="glass-panel w-full max-w-lg p-6 relative">
         <button onClick={onClose} className="absolute top-4 right-4 text-white/50 hover:text-white transition-colors">
           <X className="w-6 h-6" />

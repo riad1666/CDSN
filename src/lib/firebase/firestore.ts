@@ -32,7 +32,7 @@ export interface UserBasicInfo {
 }
 
 export const getApprovedUsers = async (): Promise<UserBasicInfo[]> => {
-  const q = query(collection(db, "users"), where("status", "==", "approved"), where("role", "==", "user"));
+  const q = query(collection(db, "users"), where("status", "==", "approved"));
   const snapshot = await getDocs(q);
   const users: UserBasicInfo[] = [];
   snapshot.forEach(doc => {
