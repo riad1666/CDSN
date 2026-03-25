@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { ShoppingCart, ChefHat, LogOut, LayoutDashboard, Shield, Menu, X } from "lucide-react";
+import PWAInstallPrompt from "./PWAInstallPrompt";
 import { useAuth } from "@/context/AuthContext";
 import { logoutUser } from "@/lib/firebase/auth";
 import { useRouter } from "next/navigation";
@@ -77,7 +78,8 @@ export function UserHeader() {
       </nav>
       
       <div className="flex items-center gap-4">
-        <div className="hidden md:flex items-center gap-4">
+        <div className="hidden md:flex items-center gap-6">
+          <PWAInstallPrompt />
           <div className="flex items-center gap-3">
             {userData?.profileImage && (
               <img src={userData.profileImage} alt="Profile" className="w-8 h-8 rounded-full border border-white/20 object-cover" />
@@ -112,6 +114,9 @@ export function UserHeader() {
               <Shield className="w-5 h-5" /> Admin Panel
             </Link>
           )}
+          <div className="px-2 py-1">
+            <PWAInstallPrompt />
+          </div>
           <div className="h-px bg-white/10 my-2"></div>
           <div className="flex items-center justify-between p-2">
             <div className="flex items-center gap-3">

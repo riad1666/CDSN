@@ -3,12 +3,24 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
 import { Toaster } from 'react-hot-toast';
+import SWRegistration from '@/components/SWRegistration';
 
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: 'CDS - Convergence Digital Society',
   description: 'Shared expense management and automation system',
+  manifest: '/manifest.json',
+  themeColor: '#1a1b2e',
+  viewport: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'CDS',
+  },
+  icons: {
+    apple: '/logo.png',
+  }
 };
 
 export default function RootLayout({
@@ -20,6 +32,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <AuthProvider>
+          <SWRegistration />
           {children}
           <Toaster position="top-center" toastOptions={{
             style: { background: '#1a1b2e', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }
