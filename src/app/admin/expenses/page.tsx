@@ -4,14 +4,24 @@ import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase/config";
 import { collection, query, onSnapshot, doc, deleteDoc, orderBy } from "firebase/firestore";
 import { format } from "date-fns";
-import { Search, Edit, Trash2 } from "lucide-react";
+import { Search, Edit, Trash2, DollarSign, ShoppingCart } from "lucide-react";
 import { getApprovedUsers, UserBasicInfo, Expense } from "@/lib/firebase/firestore";
 import toast from "react-hot-toast";
+interface ShoppingItem {
+  id: string;
+  title: string;
+  items?: { name: string, amount: string }[];
+  amount: number;
+  addedBy: string;
+  date: string;
+}
 
 export default function AdminExpensesPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [shopping, setShopping] = useState<ShoppingItem[]>([]);
   const [usersMap, setUsersMap] = useState<Record<string, UserBasicInfo>>({});
   const [search, setSearch] = useState("");
+  const [activeTab, setActiveTab] = useState<'expenses'|'shopping'>('expenses');
 
   useEffect(() => {
     getApprovedUsers().then(list => {
@@ -26,21 +36,37 @@ export default function AdminExpensesPage() {
       snapshot.forEach(doc => data.push({ id: doc.id, ...doc.data() } as Expense));
       setExpenses(data);
     });
-    return () => unsub();
+
+    const qShop = query(collection(db, "shopping"), orderBy("date", "desc"));
+    const unsubShop = onSnapshot(qShop, (snapshot) => {
+      const data: ShoppingItem[] = [];
+      snapshot.forEach(doc => data.push({ id: doc.id, ...doc.data() } as ShoppingItem));
+      setShopping(data);
+    });
+
+    return () => { unsub(); unsubShop(); };
   }, []);
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this expense?")) return;
+  const handleDelete = async (id: string, type: 'expenses'|'shopping') => {
+    if (!confirm(`Are you sure you want to delete this ${type === 'shopping' ? 'shopping record' : 'expense'}?`)) return;
     try {
-      await deleteDoc(doc(db, "expenses", id));
-      toast.success("Expense deleted");
+      if (type === 'shopping') {
+         await deleteDoc(doc(db, "shopping", id));
+         toast.success("Shopping deleted");
+      } else {
+         await deleteDoc(doc(db, "expenses", id));
+         toast.success("Expense deleted");
+      }
     } catch(err) {
-      toast.error("Failed to delete expense");
+      toast.error(`Failed to delete ${type}`);
     }
   };
 
-  const filtered = expenses.filter(e => e.title.toLowerCase().includes(search.toLowerCase()));
-  const totalAmount = expenses.reduce((sum, e) => sum + e.amount, 0);
+  const filtered = activeTab === 'expenses' 
+    ? expenses.filter(e => e.title.toLowerCase().includes(search.toLowerCase()))
+    : shopping.filter(e => e.title.toLowerCase().includes(search.toLowerCase()));
+    
+  const totalAmount = (activeTab === 'expenses' ? expenses : shopping).reduce((sum, e) => sum + e.amount, 0);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
@@ -49,14 +75,29 @@ export default function AdminExpensesPage() {
         <p className="text-white/60 text-sm">View and manage all shared expenses</p>
       </div>
 
+      <div className="flex bg-white/5 border border-white/10 rounded-xl p-1 w-fit mb-6">
+        <button 
+           className={`px-6 py-2.5 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${activeTab === 'expenses' ? 'bg-primary shadow-lg text-white' : 'text-white/50 hover:text-white'}`}
+           onClick={() => setActiveTab('expenses')}
+        >
+          <DollarSign className="w-4 h-4" /> Shared Expenses
+        </button>
+        <button 
+           className={`px-6 py-2.5 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${activeTab === 'shopping' ? 'bg-orange-500 shadow-lg text-white' : 'text-white/50 hover:text-white'}`}
+           onClick={() => setActiveTab('shopping')}
+        >
+          <ShoppingCart className="w-4 h-4" /> Shopping Trips
+        </button>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="glass-card p-6 border border-white/5 bg-white/5">
-          <div className="text-sm font-medium text-white/50 mb-1">Total Expenses</div>
-          <div className="text-2xl font-bold text-white">₩{Math.round(totalAmount).toLocaleString()}</div>
+        <div className={`glass-card p-6 border ${activeTab === 'expenses' ? 'border-primary/20 bg-primary/5' : 'border-orange-500/20 bg-orange-500/5'}`}>
+          <div className="text-sm font-medium text-white/50 mb-1">{activeTab === 'expenses' ? 'Total Expenses' : 'Total Shopping'}</div>
+          <div className={`text-2xl font-bold ${activeTab === 'expenses' ? 'text-white' : 'text-orange-400'}`}>₩{Math.round(totalAmount).toLocaleString()}</div>
         </div>
         <div className="glass-card p-6 border border-white/5 bg-white/5">
-          <div className="text-sm font-medium text-white/50 mb-1">Count</div>
-          <div className="text-2xl font-bold text-emerald-400">{expenses.length}</div>
+          <div className="text-sm font-medium text-white/50 mb-1">Total Count</div>
+          <div className="text-2xl font-bold text-emerald-400">{activeTab === 'expenses' ? expenses.length : shopping.length}</div>
         </div>
       </div>
 
@@ -84,23 +125,23 @@ export default function AdminExpensesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {filtered.map(exp => (
-                <tr key={exp.id} className="hover:bg-white/5 transition-colors group">
-                  <td className="py-4 pl-4 font-medium text-white text-sm">{exp.title}</td>
-                  <td className="py-4 font-bold text-white">₩{Math.round(exp.amount).toLocaleString()}</td>
+              {filtered.map((item: any) => (
+                <tr key={item.id} className="hover:bg-white/5 transition-colors group">
+                  <td className="py-4 pl-4 font-medium text-white text-sm">{item.title}</td>
+                  <td className="py-4 font-bold text-white">₩{Math.round(item.amount).toLocaleString()}</td>
                   <td className="py-4 text-white/70 text-sm flex items-center gap-2">
-                    {usersMap[exp.paidBy]?.profileImage ? (
-                        <img src={usersMap[exp.paidBy].profileImage} className="w-6 h-6 rounded-full object-cover" />
+                    {usersMap[activeTab === 'expenses' ? item.paidBy : item.addedBy]?.profileImage ? (
+                        <img src={usersMap[activeTab === 'expenses' ? item.paidBy : item.addedBy].profileImage} className="w-6 h-6 rounded-full object-cover" />
                     ) : null}
-                    {usersMap[exp.paidBy]?.name || "Unknown"}
+                    {usersMap[activeTab === 'expenses' ? item.paidBy : item.addedBy]?.name || (activeTab === 'shopping' ? item.addedBy : "Unknown")}
                   </td>
-                  <td className="py-4 text-white/70 text-sm">{exp.date ? format(new Date(exp.date), "yyyy-MM-dd") : "N/A"}</td>
+                  <td className="py-4 text-white/70 text-sm">{item.date ? format(new Date(item.date), "yyyy-MM-dd") : "N/A"}</td>
                   <td className="py-4 pr-4">
                     <div className="flex items-center justify-end gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                       <button className="w-8 h-8 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center hover:bg-blue-500/40 hover:scale-110 active:scale-95 transition-all">
                         <Edit className="w-4 h-4" />
                       </button>
-                      <button onClick={() => handleDelete(exp.id)} className="w-8 h-8 rounded-lg bg-rose-500/20 text-rose-400 flex items-center justify-center hover:bg-rose-500/40 hover:scale-110 active:scale-95 transition-all">
+                      <button onClick={() => handleDelete(item.id, activeTab)} className="w-8 h-8 rounded-lg bg-rose-500/20 text-rose-400 flex items-center justify-center hover:bg-rose-500/40 hover:scale-110 active:scale-95 transition-all">
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>

@@ -102,7 +102,7 @@ export default function ShoppingPage() {
       <AddShoppingModal isOpen={isModalOpen} onClose={() => setModalOpen(false)} />
       
       {selectedItem && (
-         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in zoom-in-95 duration-200" onClick={() => setSelectedItem(null)}>
+         <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in zoom-in-95 duration-200" onClick={() => setSelectedItem(null)}>
             <div className="glass-panel w-full max-w-sm p-6 relative" onClick={e => e.stopPropagation()}>
                <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-white/10 flex items-center justify-center cursor-pointer hover:bg-white/20" onClick={() => setSelectedItem(null)}>
                   <Plus className="w-5 h-5 text-white transform rotate-45" />

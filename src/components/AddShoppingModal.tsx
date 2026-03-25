@@ -40,9 +40,10 @@ export function AddShoppingModal({ isOpen, onClose }: { isOpen: boolean, onClose
         images: [] 
       });
 
+      let finalImages: string[] = [];
       if (images.length > 0) {
-        const imageUrls = await uploadReceipts(images, shopRef.id);
-        await updateDoc(doc(db, "shopping", shopRef.id), { images: imageUrls });
+        finalImages = await uploadReceipts(images, shopRef.id);
+        await updateDoc(doc(db, "shopping", shopRef.id), { images: finalImages });
       }
 
       const allUsers = await getApprovedUsers();
@@ -54,7 +55,7 @@ export function AddShoppingModal({ isOpen, onClose }: { isOpen: boolean, onClose
         paidBy: userData?.uid,
         splitBetween: splitUids,
         date: new Date().toISOString(),
-        receipts: []
+        receipts: finalImages
       });
 
       toast.success("Shopping created and added to Expenses!");
@@ -68,7 +69,7 @@ export function AddShoppingModal({ isOpen, onClose }: { isOpen: boolean, onClose
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <div className="glass-panel w-full max-w-lg p-6 relative">
         <button onClick={onClose} className="absolute top-4 right-4 text-white/50 hover:text-white transition-colors">
           <X className="w-6 h-6" />

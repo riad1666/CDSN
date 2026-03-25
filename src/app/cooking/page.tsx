@@ -8,6 +8,7 @@ import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval } from "date-fns";
 import { getApprovedUsers, UserBasicInfo } from "@/lib/firebase/firestore";
 import toast from "react-hot-toast";
+import { useAuth } from "@/context/AuthContext";
 
 interface CookingSchedule {
   id: string;
@@ -16,6 +17,7 @@ interface CookingSchedule {
 }
 
 export default function CookingPage() {
+  const { userData } = useAuth();
   const [schedules, setSchedules] = useState<CookingSchedule[]>([]);
   const [usersMap, setUsersMap] = useState<Record<string, UserBasicInfo>>({});
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -84,8 +86,7 @@ export default function CookingPage() {
             
             {days.map(day => {
                const dateStr = format(day, "yyyy-MM-dd");
-               const schedule = schedules.find(s => s.date === dateStr);
-               const user = schedule ? usersMap[schedule.assignedUser] : null;
+               const daySchedules = schedules.filter(s => s.date === dateStr);
                
                const bDayMonthDay = format(day, "MM-dd");
                const bdayUsers = Object.values(usersMap).filter(u => u.dob && u.dob.slice(5) === bDayMonthDay);
@@ -119,21 +120,36 @@ export default function CookingPage() {
                          });
                       }
                    }}
-                   className={`h-20 md:h-28 rounded-xl p-2 relative flex flex-col items-center justify-center border ${schedule ? 'bg-indigo-500/20 border-indigo-500/40 shadow-[0_0_15px_rgba(99,102,241,0.2)]' : 'bg-white/5 border-transparent hover:bg-white/10'} ${isBirthday ? 'cursor-pointer ring-2 ring-pink-500/50 hover:bg-pink-500/10' : ''} transition-all`}
+                   className={`h-20 md:h-28 rounded-xl p-1 md:p-2 relative flex flex-col items-center border 
+                     ${daySchedules.length > 0 ? (daySchedules.some(s => s.assignedUser === userData?.uid) ? 'bg-orange-500/20 border-orange-500/40 shadow-[0_0_15px_rgba(249,115,22,0.15)] ring-1 ring-orange-500/50' : 'bg-primary/20 border-primary/40 shadow-[0_0_15px_rgba(var(--color-primary),0.1)]') : 'bg-white/5 border-transparent'} 
+                     ${isBirthday ? 'cursor-pointer hover:bg-pink-500/10 ring-2 ring-pink-500/50' : ''} transition-all`}
                  >
-                   <span className={`absolute top-1 left-2 md:top-2 md:left-3 text-xs md:text-sm font-bold ${isBirthday ? 'text-pink-400' : 'text-white/60'}`}>{format(day, "d")}</span>
+                   <span className={`absolute top-1 md:top-2 left-1.5 md:left-2 text-[10px] md:text-sm font-bold ${daySchedules.some(s => s.assignedUser === userData?.uid) ? 'text-orange-400' : isBirthday ? 'text-pink-400' : 'text-white/60'}`}>{format(day, "d")}</span>
+                   
                    {isBirthday && (
-                      <span className="absolute top-1 right-1 md:top-2 md:right-2 text-lg md:text-xl drop-shadow-md animate-pulse">🎂</span>
+                      <span className={`absolute animate-pulse ${daySchedules.length > 0 ? 'bottom-1 right-1 md:bottom-2 md:right-2 text-sm md:text-lg' : 'top-1 right-1 md:top-1 md:right-2 text-sm md:text-2xl z-10'}`}>🎂</span>
                    )}
-                   {user && (
-                     <div className="mt-3 md:mt-6 flex flex-col items-center">
-                       {user.profileImage ? (
-                          <img src={user.profileImage} alt={user.name} className="w-8 h-8 md:w-10 md:h-10 rounded-full object-cover border-2 border-indigo-400" />
-                       ) : (
-                          <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-white/10" />
-                       )}
-                       <span className="text-[9px] md:text-[10px] font-bold text-white mt-1 truncate max-w-full px-1 text-center">{user.name.split(" ")[0]}</span>
-                     </div>
+
+                   {daySchedules.length > 0 ? (
+                      <div className="w-full mt-auto flex justify-center gap-1 md:gap-2 flex-wrap h-full pt-4 md:pt-6 pb-0.5">
+                         {daySchedules.map(sch => {
+                            const user = usersMap[sch.assignedUser];
+                            if (!user) return null;
+                            const isMe = sch.assignedUser === userData?.uid;
+                            return (
+                               <div key={sch.id} className="flex flex-col items-center justify-end h-full">
+                                  {user.profileImage ? (
+                                     <img src={user.profileImage} alt={user.name} className={`w-5 h-5 md:w-8 md:h-8 rounded-full object-cover border shadow-md ${isMe ? 'border-orange-400/80 shadow-[0_0_8px_rgba(249,115,22,0.3)] ring-1 ring-orange-500/50' : 'border-indigo-400/50'}`} />
+                                  ) : (
+                                     <div className={`w-5 h-5 md:w-8 md:h-8 rounded-full bg-white/10 border shadow-md ${isMe ? 'border-orange-400/80 ring-1 ring-orange-500/50' : 'border-indigo-400/50'}`} />
+                                  )}
+                                  <span className={`text-[7px] md:text-[10px] font-bold mt-0.5 truncate max-w-[32px] md:max-w-[44px] text-center mix-blend-screen leading-none ${isMe ? 'text-orange-300 drop-shadow-[0_0_2px_rgba(249,115,22,0.8)]' : 'text-white'}`}>{user.name.split(" ")[0]}</span>
+                               </div>
+                            );
+                         })}
+                      </div>
+                   ) : (
+                      <div className="mt-auto mb-1 md:mb-2 text-[8px] md:text-[10px] text-white/20 italic truncate leading-none">Open date</div>
                    )}
                  </div>
                )

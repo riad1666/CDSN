@@ -114,23 +114,16 @@ export default function AdminCookingPage() {
             
             {days.map(day => {
                const dateStr = format(day, "yyyy-MM-dd");
-               const schedule = schedules.find(s => s.date === dateStr);
-               const user = schedule ? usersMap[schedule.assignedUser] : null;
+               const daySchedules = schedules.filter(s => s.date === dateStr);
                
                const bDayMonthDay = format(day, "MM-dd");
                const bdayUsers = Object.values(usersMap).filter(u => u.dob && u.dob.slice(5) === bDayMonthDay);
                const isBirthday = bdayUsers.length > 0;
                
                return (
-                 <div key={day.toString()} className={`h-28 rounded-xl p-2 relative flex flex-col items-center justify-center border group ${schedule ? 'bg-indigo-500/20 border-indigo-500/40' : 'bg-white/5 border-transparent hover:bg-white/10'} ${isBirthday ? 'ring-2 ring-pink-500/50 hover:bg-pink-500/10' : ''} transition-all`}>
+                 <div key={day.toString()} className={`h-28 rounded-xl p-2 relative flex flex-col items-center justify-center border group ${daySchedules.length > 0 ? 'bg-indigo-500/20 border-indigo-500/40' : 'bg-white/5 border-transparent hover:bg-white/10'} ${isBirthday ? 'ring-2 ring-pink-500/50 hover:bg-pink-500/10' : ''} transition-all`}>
                    <span className={`absolute top-2 left-2 text-sm font-bold ${isBirthday ? 'text-pink-400' : 'text-white/60'}`}>{format(day, "d")}</span>
                    
-                   {schedule && (
-                     <button onClick={() => handleDelete(schedule.id)} className="absolute top-2 right-2 text-white/30 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                       <Trash2 className="w-4 h-4" />
-                     </button>
-                   )}
-
                    {isBirthday && (
                       <button onClick={(e) => {
                          e.stopPropagation();
@@ -155,25 +148,36 @@ export default function AdminCookingPage() {
                                </div>
                             ), { duration: 5000 });
                          });
-                      }} className={`absolute drop-shadow-md animate-pulse hover:scale-110 transition-transform ${schedule ? 'bottom-2 right-2 text-lg' : 'top-1 right-2 text-2xl z-10'}`}>🎂</button>
+                      }} className={`absolute drop-shadow-md animate-pulse hover:scale-110 transition-transform ${daySchedules.length > 0 ? 'bottom-2 right-2 text-lg' : 'top-1 right-2 text-2xl z-10'}`}>🎂</button>
                    )}
 
-                   {user ? (
-                     <div className="mt-4 flex flex-col items-center">
-                       {user.profileImage ? (
-                          <img src={user.profileImage} alt={user.name} className="w-8 h-8 rounded-full object-cover border-2 border-indigo-400" />
-                       ) : (
-                          <div className="w-8 h-8 rounded-full bg-white/10" />
-                       )}
-                       <span className="text-[10px] font-bold text-white mt-1 truncate max-w-[80px] text-center">{user.name.split(" ")[0]}</span>
-                     </div>
-                   ) : (
-                     <div className="mt-4 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                       <button onClick={() => { setSelectedDate(dateStr); setIsOpen(true); }} className="w-8 h-8 rounded-full bg-white/10 text-white flex items-center justify-center hover:bg-primary transition-colors">
-                         <Plus className="w-4 h-4" />
-                       </button>
-                     </div>
-                   )}
+                   <div className="w-full mt-4 flex justify-center gap-1.5 flex-wrap">
+                      {daySchedules.map(sch => {
+                         const user = usersMap[sch.assignedUser];
+                         if (!user) return null;
+                         return (
+                            <div key={sch.id} className="relative group/user flex flex-col items-center">
+                               {user.profileImage ? (
+                                  <img src={user.profileImage} alt={user.name} className="w-8 h-8 rounded-full object-cover border-2 border-indigo-400" />
+                               ) : (
+                                  <div className="w-8 h-8 rounded-full bg-white/10" />
+                               )}
+                               <span className="text-[10px] font-bold text-white mt-1 truncate max-w-[40px] text-center leading-none">{user.name.split(" ")[0]}</span>
+                               <button onClick={(e) => { e.stopPropagation(); handleDelete(sch.id); }} className="absolute -top-1 -right-1 bg-rose-500 rounded-full p-1 opacity-0 group-hover/user:opacity-100 transition-opacity z-10 w-4 h-4 flex items-center justify-center">
+                                  <Trash2 className="w-3 h-3 text-white" />
+                               </button>
+                            </div>
+                         );
+                      })}
+
+                      {daySchedules.length < 2 && (
+                         <div className="mt-2 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity w-full">
+                           <button onClick={() => { setSelectedDate(dateStr); setIsOpen(true); }} className="w-6 h-6 rounded-full bg-white/10 text-white flex items-center justify-center hover:bg-primary transition-colors">
+                             <Plus className="w-3 h-3" />
+                           </button>
+                         </div>
+                      )}
+                   </div>
                  </div>
                )
             })}
