@@ -1,0 +1,3 @@
+Groups Found:
+- ID: legacy_group_1774529896924 | Name: "CDS" | Members: 4 | Date: 2026-03-26T12:58:16.924Z
+- ID: legacy_group_permanent | Name: "Legacy Group" | Members: 1 | Date: 2026-03-27T15:37:13.337Z

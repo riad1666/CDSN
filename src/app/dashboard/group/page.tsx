@@ -4,7 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useEffect, useState, useRef } from "react";
 import {
   Users, Shield, ShieldAlert, LogOut, UserMinus, Activity, Copy, Check,
-  Clock, UserPlus, BarChart, PieChart, Loader2, Camera, ChevronDown, Pencil, X
+  Clock, UserPlus, BarChart, PieChart, Loader2, Camera, ChevronDown, Pencil, X, Trash2
 } from "lucide-react";
 import {
   Group, UserBasicInfo, ActivityLog, JoinRequest, Expense,
@@ -40,6 +40,7 @@ export default function GroupProfilePage() {
   const [editingName, setEditingName] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
   const [savingName, setSavingName] = useState(false);
+  const [deletingGroup, setDeletingGroup] = useState(false);
 
   // Derived role
   const userId = userData?.uid || "";
@@ -97,6 +98,27 @@ export default function GroupProfilePage() {
       toast.success("Left group successfully");
       router.push("/dashboard");
     } catch { toast.error("Failed to leave group"); }
+  };
+
+  const handleDeleteGroup = async () => {
+    if (!group || !isOwner) return;
+    const confirmName = window.prompt(`To permanently delete this group, please type its exact name: "${group.name}"`);
+    if (confirmName !== group.name) {
+      if (confirmName !== null) toast.error("Group name did not match.");
+      return;
+    }
+    setDeletingGroup(true);
+    try {
+      // Soft delete: sets isDeleted to true
+      await updateDoc(doc(db, "groups", group.id), { isDeleted: true });
+      // Inform members or simply redirect the owner
+      await updateDoc(doc(db, "users", userData!.uid), { currentGroupId: "" });
+      toast.success(`Group "${group.name}" deleted successfully.`);
+      router.push("/dashboard");
+    } catch {
+      toast.error("Failed to delete group");
+      setDeletingGroup(false);
+    }
   };
 
   const handleApprove = async (req: JoinRequest) => {
@@ -261,11 +283,23 @@ export default function GroupProfilePage() {
             </div>
           </div>
 
-          {!isOwner && (
-            <button onClick={handleLeave} className="px-5 py-2.5 rounded-xl bg-rose-500/10 text-rose-500 border border-rose-500/20 hover:bg-rose-500 hover:text-white transition-all font-black text-[10px] uppercase tracking-widest flex items-center gap-2 cursor-pointer">
-              <LogOut className="w-3 h-3" /> Leave Group
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {!isOwner && (
+              <button onClick={handleLeave} className="px-5 py-2.5 rounded-xl bg-rose-500/10 text-rose-500 border border-rose-500/20 hover:bg-rose-500 hover:text-white transition-all font-black text-[10px] uppercase tracking-widest flex items-center gap-2 cursor-pointer">
+                <LogOut className="w-3 h-3" /> Leave Group
+              </button>
+            )}
+            {isOwner && (
+              <button 
+                onClick={handleDeleteGroup}
+                disabled={deletingGroup}
+                className="px-5 py-2.5 rounded-xl bg-red-600/10 text-red-500 border border-red-500/20 hover:bg-red-600 hover:text-white transition-all font-black text-[10px] uppercase tracking-widest flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                {deletingGroup ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                Delete Group
+              </button>
+            )}
+          </div>
         </div>
       </section>
 
