@@ -143,7 +143,7 @@ export default function CookingPage() {
                const daySchedules = schedules.filter(s => s.date === dateStr);
                
                const bDayMonthDay = format(day, "MM-dd");
-               const bdayUsers = Object.values(usersMap).filter(u => u.dob && u.dob.slice(5) === bDayMonthDay);
+               const bdayUsers = Object.values(usersMap).filter(u => u.dob && u.dob.slice(5) === bDayMonthDay && group?.memberIds.includes(u.uid));
                const isBirthday = bdayUsers.length > 0;
                
                return (

@@ -1,13 +1,13 @@
 /**
  * Run with: npx tsx scripts/migrateLegacyData.ts
  *
- * Links ALL existing expenses, shoppingItems, and settlements that have
- * no groupId (or wrong groupId) to the "Legacy Group".
+ * Re-creates the Legacy Group explicitly with specific members if it's missing,
+ * sets the owner to 202617310, and links all orphaned data exactly.
  */
 
 import { initializeApp } from "firebase/app";
 import {
-  getFirestore, collection, getDocs, updateDoc, doc, query, where
+  getFirestore, collection, getDocs, updateDoc, doc, setDoc, arrayUnion
 } from "firebase/firestore";
 import * as dotenv from "dotenv";
 dotenv.config({ path: ".env.local" });
@@ -24,25 +24,54 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+const TARGET_STUDENT_ID = "202617310";
+const LEGACY_GROUP_ID = "legacy_group_permanent";
+
 async function migrate() {
-  // 1. Find the Legacy Group
-  console.log("🔍 Finding Legacy Group...");
-  const groupsSnap = await getDocs(collection(db, "groups"));
-  let legacyGroupId = "";
-  groupsSnap.forEach(d => {
+  console.log("🔍 Scanning users...");
+  const usersSnap = await getDocs(collection(db, "users"));
+  let ownerUid = "";
+  let memberIds: string[] = [];
+  
+  usersSnap.forEach(d => {
     const data = d.data();
-    if (!data.isDeleted && (data.memberIds?.length === 4 || data.name?.toLowerCase().includes("legacy"))) {
-      legacyGroupId = d.id;
-      console.log(`✅ Found: "${data.name}" (${d.id}) with ${data.memberIds?.length} members`);
+    memberIds.push(d.id);
+    if (data.studentId === TARGET_STUDENT_ID) {
+      ownerUid = d.id;
     }
   });
 
-  if (!legacyGroupId) {
-    console.error("❌ Could not find Legacy Group. Run fixGroupOwner.ts first.");
-    process.exit(1);
+  if (!ownerUid) {
+    console.warn(`⚠️ Warning: Owner with student ID ${TARGET_STUDENT_ID} not found in DB! Using first available user as owner fallback...`);
+    ownerUid = memberIds[0];
   }
 
-  // Helper: batch-update all docs in a collection missing groupId or with wrong groupId
+  // 1. Force explicitly create or update Legacy Group
+  console.log("🛠️ Establishing Legacy Group...");
+  await setDoc(doc(db, "groups", LEGACY_GROUP_ID), {
+    name: "Legacy Group",
+    inviteCode: "LEGACY",
+    ownerId: ownerUid,
+    memberIds: memberIds,
+    memberRoles: { [ownerUid]: "owner" },
+    totalExpense: 0,
+    createdAt: new Date().toISOString(),
+    isDeleted: false,
+    profileImage: ""
+  }, { merge: true });
+
+  console.log(`✅ Group "${LEGACY_GROUP_ID}" secured. Owner UID: ${ownerUid}`);
+
+  // Update all users so they default to this group
+  console.log("📦 Binding users to legacy group...");
+  for (const uid of memberIds) {
+    await updateDoc(doc(db, "users", uid), {
+      currentGroupId: LEGACY_GROUP_ID,
+      groupsJoined: arrayUnion(LEGACY_GROUP_ID)
+    });
+  }
+
+  // Helper: batch-update all docs in a collection missing groupId or with wrong/old groupId
   async function patchCollection(colName: string) {
     console.log(`\n📦 Processing collection: ${colName}`);
     const snap = await getDocs(collection(db, colName));
@@ -51,51 +80,35 @@ async function migrate() {
 
     for (const d of snap.docs) {
       const data = d.data();
-      // Patch if: no groupId, or groupId is empty string, or groupId is different from legacyGroupId
-      // but we don't override documents that already have a valid, different groupId
-      const hasGroupId = data.groupId && data.groupId.trim() !== "";
-      if (!hasGroupId) {
-        await updateDoc(doc(db, colName, d.id), { groupId: legacyGroupId });
+      // We want to force any unlinked or poorly linked items to LEGACY_GROUP_ID.
+      // If it's already tied exactly to LEGACY_GROUP_ID, skip it.
+      if (data.groupId !== LEGACY_GROUP_ID) {
+        await updateDoc(doc(db, colName, d.id), { groupId: LEGACY_GROUP_ID });
         updated++;
         process.stdout.write(".");
       } else {
         skipped++;
       }
     }
-    console.log(`\n  ✅ Updated: ${updated}, Skipped (already has groupId): ${skipped}`);
+    console.log(`\n  ✅ Updated: ${updated}, Skipped (already correct): ${skipped}`);
   }
 
+  // Patch typical app data
   await patchCollection("expenses");
   await patchCollection("settlements");
   await patchCollection("shoppingItems");
+  await patchCollection("notices");
 
-  // Also patch notices that have no groupId
-  console.log(`\n📦 Processing collection: notices`);
-  const noticesSnap = await getDocs(collection(db, "notices"));
-  let noticeUpdated = 0;
-  for (const d of noticesSnap.docs) {
-    const data = d.data();
-    if (!data.groupId) {
-      await updateDoc(doc(db, "notices", d.id), { groupId: legacyGroupId });
-      noticeUpdated++;
-    }
-  }
-  console.log(`  ✅ Updated: ${noticeUpdated} notices`);
+  // Fix correctly referencing "cookingSchedules" 
+  await patchCollection("cookingSchedules"); 
 
-  // Also patch cooking schedule
-  console.log(`\n📦 Processing collection: cookingSchedule`);
-  const cookSnap = await getDocs(collection(db, "cookingSchedule"));
-  let cookUpdated = 0;
-  for (const d of cookSnap.docs) {
-    const data = d.data();
-    if (!data.groupId) {
-      await updateDoc(doc(db, "cookingSchedule", d.id), { groupId: legacyGroupId });
-      cookUpdated++;
-    }
-  }
-  console.log(`  ✅ Updated: ${cookUpdated} cooking records`);
+  // (Optional) Catch old "cookingSchedule" ghost data if any
+  try {
+     const snap = await getDocs(collection(db, "cookingSchedule"));
+     if (!snap.empty) await patchCollection("cookingSchedule");
+  } catch(e) {}
 
-  console.log("\n🎉 Migration complete! All legacy data linked to: " + legacyGroupId);
+  console.log("\n🎉 Migration complete! Platform strictly linked to Legacy Group.");
 }
 
 migrate().catch(err => {

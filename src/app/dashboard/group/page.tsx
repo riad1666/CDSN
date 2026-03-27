@@ -23,7 +23,6 @@ export default function GroupProfilePage() {
   const { userData, currentGroupId } = useAuth();
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const [group, setGroup] = useState<Group | null>(null);
   const [members, setMembers] = useState<UserBasicInfo[]>([]);
@@ -62,10 +61,11 @@ export default function GroupProfilePage() {
     return () => { unsubGroup(); unsubActivity(); unsubRequests(); unsubExpenses(); };
   }, [currentGroupId, userData?.uid, isAdmin]);
 
-  // Close dropdown on outside click — using pointer events on the ref
+  // Close dropdown on outside click
   useEffect(() => {
     const handlePointerDown = (e: PointerEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+      const target = e.target as Element;
+      if (!target.closest(".role-dropdown-container")) {
         setRoleDropdownOpen(null);
       }
     };
@@ -325,7 +325,7 @@ export default function GroupProfilePage() {
 
                       {/* ── Owner controls ── */}
                       {canManage && (
-                        <div ref={dropdownRef} className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 role-dropdown-container">
                           {/* Role dropdown — uses pointerdown to avoid React 17 event timing issue */}
                           <div className="relative">
                             <button

@@ -2,12 +2,13 @@
 
 import { useAuth } from "@/context/AuthContext";
 import { useEffect, useState, Suspense } from "react";
-import { User, DollarSign, ArrowUpRight, ArrowDownLeft, Search, Plus, Wallet, TrendingUp, TrendingDown, History, Loader2 } from "lucide-react";
+import { User, DollarSign, ArrowUpRight, ArrowDownLeft, Search, Plus, Wallet, TrendingUp, TrendingDown, History, Loader2, ArrowLeft } from "lucide-react";
 import { PersonalTrade, subscribeToPersonalTrades, UserBasicInfo, getApprovedUsers, findOrCreatePersonalTrade } from "@/lib/firebase/firestore";
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
 import { useSearchParams, useRouter } from "next/navigation";
 import toast from "react-hot-toast";
+import Link from "next/link";
 
 export default function PersonalDashboard() {
   return (
@@ -66,11 +67,16 @@ function PersonalDashboardContent() {
     <div className="space-y-8 max-w-5xl mx-auto">
       {/* Unified Wallet Header */}
       <section>
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
-              <Wallet className="w-5 h-5 text-emerald-400" />
+          <div className="flex items-center gap-4 mb-6">
+            <Link href="/dashboard" className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors shrink-0">
+               <ArrowLeft className="w-5 h-5 text-white" />
+            </Link>
+            <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+                  <Wallet className="w-5 h-5 text-emerald-400" />
+                </div>
+                <h2 className="text-2xl font-bold text-white tracking-tight">Unified Wallet</h2>
             </div>
-            <h2 className="text-2xl font-bold text-white tracking-tight">Unified Wallet</h2>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
