@@ -5,6 +5,7 @@ import { X, Loader2, Camera, Shield } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase/config";
 import { collection, addDoc, doc, updateDoc, arrayUnion } from "firebase/firestore";
+import { writeGroupActivity } from "@/lib/firebase/firestore";
 import toast from "react-hot-toast";
 
 export function CreateGroupModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
@@ -30,17 +31,22 @@ export function CreateGroupModal({ isOpen, onClose }: { isOpen: boolean, onClose
         inviteCode,
         ownerId: userData!.uid,
         memberIds: [userData!.uid],
+        // memberRoles enables role-based UI (birthday candle, admin controls, etc.) for all new groups
+        memberRoles: { [userData!.uid]: "owner" },
         totalExpense: 0,
         createdAt: new Date().toISOString(),
         isDeleted: false,
         profileImage: ""
       });
 
-      // Update user's joined groups
+      // Update user's joined groups and set as current group
       await updateDoc(doc(db, "users", userData!.uid), {
         groupsJoined: arrayUnion(groupRef.id),
         currentGroupId: groupRef.id
       });
+
+      // Log group creation activity
+      await writeGroupActivity(groupRef.id, "group_created", `Group "${name}" was created.`, userData!.uid);
 
       toast.success(`Group "${name}" created! Invite code: ${inviteCode}`);
       onClose();
