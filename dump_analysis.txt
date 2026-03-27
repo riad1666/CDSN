@@ -1,0 +1,20 @@
+--- GROUPS ANALYSIS ---
+Group: legacy_group_1774529896924 ("CDS") - Members: 4
+
+--- DATA COLLECTIONS ANALYSIS ---
+
+Collection: expenses (Total: 3)
+  -> legacy_group_1774529896924: 3 items
+
+Collection: shoppingItems (Total: 0)
+
+Collection: settlements (Total: 10)
+  -> legacy_group_1774529896924: 10 items
+
+Collection: cookingSchedules (Total: 14)
+  -> legacy_group_1774529896924: 14 items
+
+Collection: notices (Total: 1)
+  -> legacy_group_1774529896924: 1 items
+
+Collection: cookingSchedule (Total: 0)
