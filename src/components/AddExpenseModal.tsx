@@ -6,7 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase/config";
 import { collection, addDoc, getDocs, query, where, updateDoc, doc } from "firebase/firestore";
 import { uploadReceipts } from "@/lib/firebase/storage";
-import { getApprovedUsers } from "@/lib/firebase/firestore";
+import { getApprovedUsers, getGroupMembers, writeNotification, writeGroupActivity } from "@/lib/firebase/firestore";
 import toast from "react-hot-toast";
 
 export function AddExpenseModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
@@ -31,8 +31,12 @@ export function AddExpenseModal({ isOpen, onClose }: { isOpen: boolean, onClose:
 
     setLoading(true);
     try {
-      const allUsers = await getApprovedUsers();
-      const splitBetween = allUsers.filter(u => u.role === "user").map(u => u.uid);
+      if (!userData?.currentGroupId) {
+        throw new Error("No group selected. Please select a group first.");
+      }
+
+      const allMembers = await getGroupMembers(userData.currentGroupId);
+      const splitBetween = allMembers.map(u => u.uid);
       
       if (splitBetween.length === 0) {
         splitBetween.push(userData!.uid);
@@ -44,13 +48,35 @@ export function AddExpenseModal({ isOpen, onClose }: { isOpen: boolean, onClose:
         paidBy: userData!.uid,
         splitBetween,
         date,
-        receipts: [] 
+        receipts: [],
+        groupId: userData.currentGroupId,
+        isDeleted: false,
+        createdAt: new Date().toISOString()
       });
 
       if (receipts.length > 0) {
         const receiptUrls = await uploadReceipts(receipts, expenseRef.id);
         await updateDoc(doc(db, "expenses", expenseRef.id), { receipts: receiptUrls });
       }
+
+      // Log activity
+      await writeGroupActivity(
+        userData.currentGroupId, 
+        "expense_added", 
+        `${userData.name} added a new expense: "${title}" (₩${parseFloat(amount).toLocaleString()})`,
+        userData.uid
+      );
+
+      // Notify others
+      const otherMembers = splitBetween.filter(id => id !== userData.uid);
+      await Promise.all(otherMembers.map(memberId => 
+        writeNotification(
+          memberId, 
+          "EXPENSE_ADDED", 
+          `${userData.name} added "${title}" in your group.`,
+          { groupId: userData.currentGroupId, expenseId: expenseRef.id }
+        )
+      ));
 
       toast.success("Expense added explicitly! Split evenly.");
       onClose();

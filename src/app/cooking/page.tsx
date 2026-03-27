@@ -1,19 +1,23 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowLeft, ChevronLeft, ChevronRight, Calendar as CalendarIcon } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Calendar as CalendarIcon, LayoutGrid, Plus } from "lucide-react";
 import Link from "next/link";
 import { db } from "@/lib/firebase/config";
-import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot, where } from "firebase/firestore";
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval } from "date-fns";
 import { getApprovedUsers, UserBasicInfo } from "@/lib/firebase/firestore";
 import toast from "react-hot-toast";
 import { useAuth } from "@/context/AuthContext";
+import { motion } from "framer-motion";
+import { AssignCookingModal } from "@/components/AssignCookingModal";
+import { subscribeToUserGroups, Group } from "@/lib/firebase/firestore";
 
 interface CookingSchedule {
   id: string;
   date: string;
   assignedUser: string;
+  groupId: string;
 }
 
 export default function CookingPage() {
@@ -21,22 +25,64 @@ export default function CookingPage() {
   const [schedules, setSchedules] = useState<CookingSchedule[]>([]);
   const [usersMap, setUsersMap] = useState<Record<string, UserBasicInfo>>({});
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [isAssignOpen, setIsAssignOpen] = useState(false);
+  const [group, setGroup] = useState<Group | null>(null);
 
   useEffect(() => {
+    if (!userData?.currentGroupId) return;
+
+    // Filter by group membership in the future, for now using global approved users filtered by who is in the schedules
     getApprovedUsers().then(list => {
       const map: Record<string, UserBasicInfo> = {};
       list.forEach(u => map[u.uid] = u);
       setUsersMap(map);
     });
 
-    const q = query(collection(db, "cookingSchedules"), orderBy("date", "asc"));
+    const q = query(
+        collection(db, "cookingSchedules"), 
+        where("groupId", "==", userData.currentGroupId),
+        where("isDeleted", "==", false),
+        orderBy("date", "asc")
+    );
     const unsub = onSnapshot(q, (snapshot) => {
       const data: CookingSchedule[] = [];
       snapshot.forEach(doc => data.push({ id: doc.id, ...doc.data() } as CookingSchedule));
       setSchedules(data);
     });
-    return () => unsub();
-  }, []);
+    const unsubGroup = subscribeToUserGroups(userData.uid, (groups) => {
+      const current = groups.find(g => g.id === userData.currentGroupId);
+      if (current) setGroup(current);
+    });
+
+    return () => {
+      unsub();
+      unsubGroup();
+    };
+  }, [userData?.currentGroupId, userData?.uid]);
+
+  const userRole = group?.memberRoles?.[userData?.uid || ""] || "member";
+  const isAdmin = userRole === "admin" || userRole === "owner";
+
+  if (!userData?.currentGroupId) {
+    return (
+        <div className="h-[80vh] flex flex-col items-center justify-center text-center px-4">
+            <motion.div 
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="glass-panel p-12 max-w-lg w-full"
+            >
+                <div className="w-20 h-20 rounded-3xl bg-orange-500/20 flex items-center justify-center mx-auto mb-6">
+                    <CalendarIcon className="w-10 h-10 text-orange-400" />
+                </div>
+                <h2 className="text-3xl font-bold text-white mb-4">Cooking Schedule</h2>
+                <p className="text-white/60 mb-8 leading-relaxed">
+                    Select a group from the sidebar to view its shared cooking schedule.
+                </p>
+                <Link href="/dashboard" className="glass-button text-sm py-3 px-8 mx-auto">Go to Dashboard</Link>
+            </motion.div>
+        </div>
+    );
+  }
 
   const days = eachDayOfInterval({
     start: startOfMonth(currentMonth),
@@ -52,9 +98,17 @@ export default function CookingPage() {
         <div className="w-10 h-10 rounded-xl bg-orange-500/20 flex items-center justify-center">
           <CalendarIcon className="w-5 h-5 text-orange-400" />
         </div>
-        <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+        <h2 className="text-2xl font-bold text-white flex items-center gap-2 flex-1">
            Cooking Schedule
         </h2>
+        {isAdmin && (
+           <button 
+             onClick={() => setIsAssignOpen(true)}
+             className="mr-4 px-4 py-2 bg-orange-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-orange-600 transition-all shadow-lg shadow-orange-500/20 flex items-center gap-2"
+           >
+             <Plus className="w-4 h-4" /> Assign Duty
+           </button>
+        )}
       </div>
 
       <div className="glass-panel p-6 mb-8 mx-4">
@@ -196,6 +250,11 @@ export default function CookingPage() {
            )}
          </div>
       </div>
+      
+      <AssignCookingModal 
+        isOpen={isAssignOpen} 
+        onClose={() => setIsAssignOpen(false)} 
+      />
     </div>
   );
 }

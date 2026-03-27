@@ -7,10 +7,10 @@ import { Loader2 } from "lucide-react";
 
 export function ProtectedRoute({ 
   children, 
-  allowedRoles = ["user", "admin"] 
+  allowedRoles = ["user", "admin", "superadmin"] 
 }: { 
   children: ReactNode, 
-  allowedRoles?: ("user" | "admin")[] 
+  allowedRoles?: ("user" | "admin" | "superadmin")[] 
 }) {
   const { user, userData, loading } = useAuth();
   const router = useRouter();

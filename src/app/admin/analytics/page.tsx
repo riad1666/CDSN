@@ -4,11 +4,12 @@ import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase/config";
 import { collection, query, onSnapshot } from "firebase/firestore";
 import { getApprovedUsers, UserBasicInfo, Expense } from "@/lib/firebase/firestore";
-import { BarChart, PieChart, TrendingUp, DollarSign, Award } from "lucide-react";
+import { BarChart, PieChart, TrendingUp, DollarSign, Award, LayoutGrid } from "lucide-react";
 
 export default function AdminAnalyticsPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [usersMap, setUsersMap] = useState<Record<string, UserBasicInfo>>({});
+  const [groups, setGroups] = useState<any[]>([]);
 
   useEffect(() => {
     getApprovedUsers().then(list => {
@@ -23,7 +24,18 @@ export default function AdminAnalyticsPage() {
       snapshot.forEach(doc => data.push({ id: doc.id, ...doc.data() } as Expense));
       setExpenses(data);
     });
-    return () => unsub();
+
+    const qGroups = query(collection(db, "groups"));
+    const unsubGroups = onSnapshot(qGroups, (snapshot) => {
+      const data: any[] = [];
+      snapshot.forEach(doc => data.push({ id: doc.id, ...doc.data() }));
+      setGroups(data);
+    });
+
+    return () => {
+      unsub();
+      unsubGroups();
+    };
   }, []);
 
   const totalSpent = expenses.reduce((sum, e) => sum + e.amount, 0);
@@ -162,6 +174,48 @@ export default function AdminAnalyticsPage() {
            </div>
          </div>
       </div>
+
+       {/* Group Breakdown */}
+       <div className="glass-panel p-6">
+          <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
+            <LayoutGrid className="w-5 h-5 text-emerald-400" /> Group-wise Financial Breakdown
+          </h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b border-white/5">
+                  <th className="pb-4 text-[10px] font-black text-white/40 uppercase tracking-widest">Group</th>
+                  <th className="pb-4 text-[10px] font-black text-white/40 uppercase tracking-widest">Members</th>
+                  <th className="pb-4 text-[10px] font-black text-white/40 uppercase tracking-widest text-right">Total Expenses</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {groups.map(group => {
+                  const groupTotal = expenses.filter(e => e.groupId === group.id).reduce((sum, e) => sum + e.amount, 0);
+                  return (
+                    <tr key={group.id} className="group hover:bg-white/[0.02] transition-colors">
+                      <td className="py-4">
+                        <div className="flex items-center gap-1.5 px-3 py-2 hover:bg-white/2 rounded-xl transition-colors cursor-pointer group/item">
+                          <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400 text-[10px] font-black italic">
+                            {group.name?.substring(0, 2).toUpperCase()}
+                          </div>
+                          <span className="text-xs font-bold text-white uppercase italic">{group.name}</span>
+                        </div>
+                      </td>
+                      <td className="py-4">
+                        <span className="text-xs font-bold text-white/40 tracking-widest">{group.memberIds?.length || 0} MEMBERS</span>
+                      </td>
+                      <td className="py-4 text-right">
+                        <span className="text-xs font-black text-white tracking-widest">₩{Math.round(groupTotal).toLocaleString()}</span>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+            {groups.length === 0 && <p className="text-center py-8 text-white/20 text-xs">No groups found.</p>}
+          </div>
+       </div>
     </div>
   );
 }

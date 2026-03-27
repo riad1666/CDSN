@@ -6,7 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase/config";
 import { collection, addDoc, updateDoc, doc } from "firebase/firestore";
 import { uploadReceipts } from "@/lib/firebase/storage";
-import { getApprovedUsers } from "@/lib/firebase/firestore";
+import { getApprovedUsers, getGroupMembers } from "@/lib/firebase/firestore";
 import toast from "react-hot-toast";
 
 export function AddShoppingModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
@@ -31,13 +31,20 @@ export function AddShoppingModal({ isOpen, onClose }: { isOpen: boolean, onClose
 
     setLoading(true);
     try {
+      if (!userData?.currentGroupId) {
+        throw new Error("No group selected. Please select a group first.");
+      }
+
       const shopRef = await addDoc(collection(db, "shopping"), {
         title,
         items,
         amount: totalAmount,
         addedBy: userData?.name,
         date: new Date().toISOString(),
-        images: [] 
+        images: [],
+        groupId: userData.currentGroupId,
+        isDeleted: false,
+        createdAt: new Date().toISOString()
       });
 
       let finalImages: string[] = [];
@@ -46,8 +53,8 @@ export function AddShoppingModal({ isOpen, onClose }: { isOpen: boolean, onClose
         await updateDoc(doc(db, "shopping", shopRef.id), { images: finalImages });
       }
 
-      const allUsers = await getApprovedUsers();
-      const splitUids = allUsers.filter(u => u.role === "user").map(u => u.uid);
+      const allMembers = await getGroupMembers(userData.currentGroupId);
+      const splitUids = allMembers.map(u => u.uid);
       
       await addDoc(collection(db, "expenses"), {
         title: `Shopping: ${title}`,
@@ -55,7 +62,10 @@ export function AddShoppingModal({ isOpen, onClose }: { isOpen: boolean, onClose
         paidBy: userData?.uid,
         splitBetween: splitUids,
         date: new Date().toISOString(),
-        receipts: finalImages
+        receipts: finalImages,
+        groupId: userData.currentGroupId,
+        isDeleted: false,
+        createdAt: new Date().toISOString()
       });
 
       toast.success("Shopping created and added to Expenses!");

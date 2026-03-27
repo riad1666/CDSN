@@ -5,10 +5,11 @@ import { X, Loader2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase/config";
 import { collection, addDoc } from "firebase/firestore";
-import { getApprovedUsers, UserBasicInfo } from "@/lib/firebase/firestore";
+import { UserBasicInfo, getGroupMembers, writeNotification } from "@/lib/firebase/firestore";
+import { motion } from "framer-motion";
 import toast from "react-hot-toast";
 
-export function SettlePaymentModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
+export function SettlePaymentModal({ isOpen, onClose, targetUserId }: { isOpen: boolean, onClose: () => void, targetUserId?: string }) {
   const { userData } = useAuth();
   const [users, setUsers] = useState<UserBasicInfo[]>([]);
   const [toUser, setToUser] = useState("");
@@ -16,10 +17,15 @@ export function SettlePaymentModal({ isOpen, onClose }: { isOpen: boolean, onClo
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (isOpen) {
-      getApprovedUsers().then(list => setUsers(list.filter(u => u.uid !== userData?.uid)));
+    if (isOpen && userData?.currentGroupId) {
+      getGroupMembers(userData.currentGroupId).then(list => setUsers(list.filter(u => u.uid !== userData?.uid)));
+      if (targetUserId) {
+        setToUser(targetUserId);
+      }
+    } else if (!isOpen) {
+      setToUser("");
     }
-  }, [isOpen, userData?.uid]);
+  }, [isOpen, userData?.uid, userData?.currentGroupId, targetUserId]);
 
   if (!isOpen) return null;
 
@@ -29,13 +35,28 @@ export function SettlePaymentModal({ isOpen, onClose }: { isOpen: boolean, onClo
 
     setLoading(true);
     try {
+      if (!userData?.currentGroupId) {
+          throw new Error("No group selected.");
+      }
+
       await addDoc(collection(db, "settlements"), {
         fromUser: userData!.uid,
         toUser,
         amount: parseFloat(amount),
         status: "pending",
-        date: new Date().toISOString()
+        date: new Date().toISOString(),
+        groupId: userData.currentGroupId,
+        isDeleted: false,
+        createdAt: new Date().toISOString()
       });
+
+      await writeNotification(
+        toUser,
+        "SETTLEMENT_REQUEST",
+        `${userData!.name} requested a settlement of ₩${parseFloat(amount).toLocaleString()}.`,
+        { groupId: userData.currentGroupId, amount: parseFloat(amount) }
+      );
+
       toast.success("Settlement request sent!");
       onClose();
       setToUser("");
