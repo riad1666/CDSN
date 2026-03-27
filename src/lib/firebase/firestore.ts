@@ -14,13 +14,16 @@ export interface Notice {
 
 export const subscribeToNotices = (callback: (notices: Notice[]) => void, groupId?: string) => {
   const q = groupId 
-    ? query(collection(db, "notices"), where("groupId", "==", groupId), where("isDeleted", "==", false), orderBy("createdAt", "desc"))
-    : query(collection(db, "notices"), where("isDeleted", "==", false), orderBy("createdAt", "desc"));
+    ? query(collection(db, "notices"), where("groupId", "==", groupId), orderBy("createdAt", "desc"))
+    : query(collection(db, "notices"), orderBy("createdAt", "desc"));
   
   return onSnapshot(q, (snapshot) => {
     const notices: Notice[] = [];
     snapshot.forEach((doc) => {
-      notices.push({ id: doc.id, ...doc.data() } as Notice);
+      const data = doc.data();
+      if (!data.isDeleted) {
+        notices.push({ id: doc.id, ...data } as Notice);
+      }
     });
     callback(notices);
   });
@@ -111,11 +114,14 @@ export interface Expense {
 }
 
 export const subscribeToExpenses = (callback: (expenses: Expense[]) => void, groupId: string) => {
-  const q = query(collection(db, "expenses"), where("groupId", "==", groupId), where("isDeleted", "==", false), orderBy("date", "desc"));
+  const q = query(collection(db, "expenses"), where("groupId", "==", groupId), orderBy("date", "desc"));
   return onSnapshot(q, (snapshot) => {
     const expenses: Expense[] = [];
     snapshot.forEach((doc) => {
-      expenses.push({ id: doc.id, ...doc.data() } as Expense);
+      const data = doc.data();
+      if (!data.isDeleted) {
+        expenses.push({ id: doc.id, ...data } as Expense);
+      }
     });
     callback(expenses);
   });
@@ -134,11 +140,14 @@ export interface Settlement {
 }
 
 export const subscribeToSettlements = (callback: (settlements: Settlement[]) => void, groupId: string) => {
-  const q = query(collection(db, "settlements"), where("groupId", "==", groupId), where("isDeleted", "==", false), orderBy("date", "desc"));
+  const q = query(collection(db, "settlements"), where("groupId", "==", groupId), orderBy("date", "desc"));
   return onSnapshot(q, (snapshot) => {
     const settlements: Settlement[] = [];
     snapshot.forEach((doc) => {
-      settlements.push({ id: doc.id, ...doc.data() } as Settlement);
+      const data = doc.data();
+      if (!data.isDeleted) {
+        settlements.push({ id: doc.id, ...data } as Settlement);
+      }
     });
     callback(settlements);
   });

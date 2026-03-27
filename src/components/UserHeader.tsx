@@ -42,9 +42,8 @@ export function UserHeader() {
         const q = query(
             collection(db, "notices"), 
             where("groupId", "==", userData.currentGroupId),
-            where("isDeleted", "==", false),
             orderBy("createdAt", "desc"), 
-            limit(1)
+            limit(5) // increased limit to filter out deleted ones safely
         );
         let isFirstLoad = true;
         
@@ -57,10 +56,11 @@ export function UserHeader() {
           snapshot.docChanges().forEach((change) => {
             if (change.type === "added") {
               const notice = change.doc.data();
+              if (notice.isDeleted) return;
               if ("Notification" in window && Notification.permission === "granted") {
                 new Notification(`CDS Notice: ${notice.title}`, {
-                  body: notice.message,
-                  icon: "/logo.png"
+                  body: notice.message?.substring(0, 100),
+                  icon: '/logo.png'
                 });
               }
             }

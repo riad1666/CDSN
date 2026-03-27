@@ -34,12 +34,16 @@ export default function ShoppingPage() {
     const q = query(
         collection(db, "shopping"), 
         where("groupId", "==", userData.currentGroupId),
-        where("isDeleted", "==", false),
         orderBy("date", "desc")
     );
     const unsub = onSnapshot(q, (snapshot) => {
       const data: ShoppingItem[] = [];
-      snapshot.forEach(doc => data.push({ id: doc.id, ...doc.data() } as ShoppingItem));
+      snapshot.forEach(doc => {
+        const itemData = doc.data();
+        if (!itemData.isDeleted) {
+          data.push({ id: doc.id, ...itemData } as ShoppingItem);
+        }
+      });
       setItems(data);
     });
     return () => unsub();

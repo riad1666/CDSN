@@ -46,11 +46,14 @@ export default function DashboardPage() {
         collection(db, "cookingSchedules"), 
         where("groupId", "==", userData.currentGroupId),
         where("assignedUser", "==", userData.uid), 
-        where("isDeleted", "==", false),
         orderBy("date", "asc")
     );
     unsubCooking = onSnapshot(pq, (snap) => {
-        const upcoming = snap.docs.map(d => d.data().date).find(d => new Date(d) >= new Date(new Date().setHours(0,0,0,0)));
+        const upcoming = snap.docs
+          .map(d => d.data())
+          .filter(data => !data.isDeleted)
+          .map(data => data.date)
+          .find(d => new Date(d) >= new Date(new Date().setHours(0,0,0,0)));
         setCookingDate(upcoming || null);
     });
 

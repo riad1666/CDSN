@@ -26,12 +26,16 @@ export default function AdminNoticesPage() {
     const q = query(
         collection(db, "notices"), 
         where("groupId", "==", userData.currentGroupId),
-        where("isDeleted", "==", false),
         orderBy("createdAt", "desc")
     );
     const unsub = onSnapshot(q, (snapshot) => {
       const data: Notice[] = [];
-      snapshot.forEach(doc => data.push({ id: doc.id, ...doc.data() } as Notice));
+      snapshot.forEach(doc => {
+          const d = doc.data();
+          if (!d.isDeleted) {
+              data.push({ id: doc.id, ...d } as Notice);
+          }
+      });
       setNotices(data);
     });
     return () => unsub();

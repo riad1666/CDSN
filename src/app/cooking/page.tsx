@@ -41,12 +41,16 @@ export default function CookingPage() {
     const q = query(
         collection(db, "cookingSchedules"), 
         where("groupId", "==", userData.currentGroupId),
-        where("isDeleted", "==", false),
         orderBy("date", "asc")
     );
     const unsub = onSnapshot(q, (snapshot) => {
       const data: CookingSchedule[] = [];
-      snapshot.forEach(doc => data.push({ id: doc.id, ...doc.data() } as CookingSchedule));
+      snapshot.forEach(doc => {
+        const d = doc.data();
+        if (!d.isDeleted) {
+            data.push({ id: doc.id, ...d } as CookingSchedule);
+        }
+      });
       setSchedules(data);
     });
     const unsubGroup = subscribeToUserGroups(userData.uid, (groups) => {
