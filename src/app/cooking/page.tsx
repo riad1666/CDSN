@@ -40,8 +40,7 @@ export default function CookingPage() {
 
     const q = query(
         collection(db, "cookingSchedules"), 
-        where("groupId", "==", userData.currentGroupId),
-        orderBy("date", "asc")
+        where("groupId", "==", userData.currentGroupId)
     );
     const unsub = onSnapshot(q, (snapshot) => {
       const data: CookingSchedule[] = [];
@@ -51,6 +50,8 @@ export default function CookingPage() {
             data.push({ id: doc.id, ...d } as CookingSchedule);
         }
       });
+      // Sort in frontend
+      data.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
       setSchedules(data);
     });
     const unsubGroup = subscribeToUserGroups(userData.uid, (groups) => {

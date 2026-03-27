@@ -14,8 +14,8 @@ export interface Notice {
 
 export const subscribeToNotices = (callback: (notices: Notice[]) => void, groupId?: string) => {
   const q = groupId 
-    ? query(collection(db, "notices"), where("groupId", "==", groupId), orderBy("createdAt", "desc"))
-    : query(collection(db, "notices"), orderBy("createdAt", "desc"));
+    ? query(collection(db, "notices"), where("groupId", "==", groupId))
+    : query(collection(db, "notices"));
   
   return onSnapshot(q, (snapshot) => {
     const notices: Notice[] = [];
@@ -25,6 +25,8 @@ export const subscribeToNotices = (callback: (notices: Notice[]) => void, groupI
         notices.push({ id: doc.id, ...data } as Notice);
       }
     });
+    // Sort by createdAt descending
+    notices.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     callback(notices);
   });
 };
@@ -114,7 +116,7 @@ export interface Expense {
 }
 
 export const subscribeToExpenses = (callback: (expenses: Expense[]) => void, groupId: string) => {
-  const q = query(collection(db, "expenses"), where("groupId", "==", groupId), orderBy("date", "desc"));
+  const q = query(collection(db, "expenses"), where("groupId", "==", groupId));
   return onSnapshot(q, (snapshot) => {
     const expenses: Expense[] = [];
     snapshot.forEach((doc) => {
@@ -123,6 +125,8 @@ export const subscribeToExpenses = (callback: (expenses: Expense[]) => void, gro
         expenses.push({ id: doc.id, ...data } as Expense);
       }
     });
+    // Sort by date descending
+    expenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     callback(expenses);
   });
 };
@@ -140,7 +144,7 @@ export interface Settlement {
 }
 
 export const subscribeToSettlements = (callback: (settlements: Settlement[]) => void, groupId: string) => {
-  const q = query(collection(db, "settlements"), where("groupId", "==", groupId), orderBy("date", "desc"));
+  const q = query(collection(db, "settlements"), where("groupId", "==", groupId));
   return onSnapshot(q, (snapshot) => {
     const settlements: Settlement[] = [];
     snapshot.forEach((doc) => {
@@ -149,6 +153,8 @@ export const subscribeToSettlements = (callback: (settlements: Settlement[]) => 
         settlements.push({ id: doc.id, ...data } as Settlement);
       }
     });
+    // Sort by date descending
+    settlements.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     callback(settlements);
   });
 };
@@ -174,11 +180,14 @@ export interface GroupMember {
 }
 
 export const subscribeToUserGroups = (uid: string, callback: (groups: Group[]) => void) => {
-  const q = query(collection(db, "groups"), where("isDeleted", "==", false), where("memberIds", "array-contains", uid));
+  const q = query(collection(db, "groups"), where("memberIds", "array-contains", uid));
   return onSnapshot(q, (snapshot) => {
     const groups: Group[] = [];
     snapshot.forEach((doc) => {
-      groups.push({ id: doc.id, ...doc.data() } as Group);
+        const data = doc.data();
+        if (!data.isDeleted) {
+            groups.push({ ...data, id: doc.id } as Group);
+        }
     });
     callback(groups);
   });
@@ -215,12 +224,14 @@ export interface AppNotification {
 }
 
 export const subscribeToNotifications = (uid: string, callback: (notifications: AppNotification[]) => void) => {
-  const q = query(collection(db, "notifications"), where("userId", "==", uid), orderBy("createdAt", "desc"));
+  const q = query(collection(db, "notifications"), where("userId", "==", uid));
   return onSnapshot(q, (snapshot) => {
     const notifications: AppNotification[] = [];
     snapshot.forEach((doc) => {
       notifications.push({ id: doc.id, ...doc.data() } as AppNotification);
     });
+    // Sort by createdAt descending
+    notifications.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     callback(notifications);
   });
 };
@@ -257,11 +268,13 @@ export function subscribeToJoinRequests(groupId: string, callback: (requests: Jo
   const q = query(
     collection(db, "joinRequests"),
     where("groupId", "==", groupId),
-    where("status", "==", "pending"),
-    orderBy("createdAt", "desc")
+    where("status", "==", "pending")
   );
   return onSnapshot(q, (snap) => {
-    callback(snap.docs.map(d => ({ id: d.id, ...d.data() } as JoinRequest)));
+    const data = snap.docs.map(d => ({ id: d.id, ...d.data() } as JoinRequest));
+    // Sort by createdAt descending
+    data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    callback(data);
   });
 }
 

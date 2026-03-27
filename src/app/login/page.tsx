@@ -12,6 +12,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [unverified, setUnverified] = useState(false);
   const router = useRouter();
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -19,12 +20,28 @@ export default function LoginPage() {
     if (!loginId || !password) return toast.error("Please fill in all fields");
     
     setLoading(true);
+    setUnverified(false);
     try {
       await loginUser(loginId, password);
-      // Let global context or page.tsx handle the rest, but we can just push to /
       router.push("/");
     } catch (error: any) {
+      if (error.message.includes("Email not verified")) {
+        setUnverified(true);
+      }
       toast.error(error.message || "Failed to login. Please check your credentials.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    const { resendVerificationEmail } = await import("@/lib/firebase/auth");
+    setLoading(true);
+    try {
+      await resendVerificationEmail();
+      toast.success("Verification email resent!");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to resend email.");
     } finally {
       setLoading(false);
     }
@@ -78,6 +95,17 @@ export default function LoginPage() {
           <button type="submit" disabled={loading} className="w-full glass-button mt-4">
             {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Sign In"}
           </button>
+
+          {unverified && (
+            <button 
+              type="button" 
+              onClick={handleResend} 
+              disabled={loading}
+              className="w-full py-2 text-primary text-xs font-semibold hover:underline animate-in fade-in slide-in-from-top-2 duration-300"
+            >
+              Didn't get the email? Resend Verification
+            </button>
+          )}
         </form>
         
         <div className="mt-6 flex flex-col items-center gap-5 text-sm w-full">

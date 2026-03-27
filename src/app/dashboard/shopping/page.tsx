@@ -33,8 +33,7 @@ export default function ShoppingPage() {
 
     const q = query(
         collection(db, "shopping"), 
-        where("groupId", "==", userData.currentGroupId),
-        orderBy("date", "desc")
+        where("groupId", "==", userData.currentGroupId)
     );
     const unsub = onSnapshot(q, (snapshot) => {
       const data: ShoppingItem[] = [];
@@ -44,6 +43,8 @@ export default function ShoppingPage() {
           data.push({ id: doc.id, ...itemData } as ShoppingItem);
         }
       });
+      // Sort by date descending
+      data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       setItems(data);
     });
     return () => unsub();

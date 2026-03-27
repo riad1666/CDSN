@@ -1,12 +1,13 @@
 import {
   createUserWithEmailAndPassword,
+  sendEmailVerification,
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
   EmailAuthProvider,
   reauthenticateWithCredential,
   updatePassword
 } from "firebase/auth";
-import { doc, setDoc, getDocs, collection, query, where } from "firebase/firestore";
+import { doc, setDoc, getDocs, collection, query, where, updateDoc } from "firebase/firestore";
 import { auth, db } from "./config";
 
 export interface RegisterData {
@@ -57,7 +58,10 @@ export const registerUser = async (data: RegisterData, imageFile: File) => {
       createdAt: new Date().toISOString(),
     });
 
-    console.log("STEP 7: Document saved. Signing out.");
+    console.log("STEP 7: Sending email verification...");
+    await sendEmailVerification(user);
+
+    console.log("STEP 8: Document saved & Email sent. Signing out.");
     await firebaseSignOut(auth);
     return user;
   } catch (error) {
@@ -136,25 +140,36 @@ export const loginUser = async (loginId: string, password: string) => {
   }
 
   const credential = await signInWithEmailAndPassword(auth, email, password);
-  
-  // Check user status before allowing login
+  const user = credential.user;
+
+  // 1. Email Verification Check
+  if (!user.emailVerified) {
+    await firebaseSignOut(auth);
+    throw new Error("Email not verified. Please check your inbox or resend the verification link.");
+  }
+
+  // 2. Fetch User Data from Firestore
   const usersRef = collection(db, "users");
   const qStatus = query(usersRef, where("email", "==", email));
   const statusSnapshot = await getDocs(qStatus);
   
   if (!statusSnapshot.empty) {
-    const userData = statusSnapshot.docs[0].data();
+    const userDoc = statusSnapshot.docs[0];
+    const userData = userDoc.data();
     
-    // Check if banned
+    // 3. Auto-Approval Logic
+    // If the user is verified, auto-approve them in Firestore if they are still pending
+    if (userData.status === "pending") {
+      await updateDoc(doc(db, "users", user.uid), { status: "approved" });
+      userData.status = "approved"; // reflect update locally
+    }
+
+    // 4. Status checks
     if (userData.bannedUntil && new Date(userData.bannedUntil) > new Date()) {
       await firebaseSignOut(auth);
       throw new Error("You're Temporary BAN for violating rules.");
     }
 
-    if (userData.status === "pending") {
-      await firebaseSignOut(auth);
-      throw new Error("Your account is under review. Please wait for admin approval.");
-    }
     if (userData.status === "rejected") {
       await firebaseSignOut(auth);
       throw new Error("Your account was rejected. Please contact the admin.");
@@ -166,6 +181,12 @@ export const loginUser = async (loginId: string, password: string) => {
   }
 
   return credential;
+};
+
+export const resendVerificationEmail = async () => {
+  const user = auth.currentUser;
+  if (!user) throw new Error("No user found. Please login first.");
+  await sendEmailVerification(user);
 };
 
 export const logoutUser = async () => {

@@ -50,7 +50,7 @@ export default function RegisterPage() {
     try {
       await registerUser(formData, imageFile);
 
-      toast.success("Account created! Please wait for admin approval.");
+      toast.success("Account created! Please verify your email to activate your account.");
       router.push("/login");
     } catch (error: any) {
       toast.error(error.message || "Failed to create account.");
