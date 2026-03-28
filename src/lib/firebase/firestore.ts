@@ -382,3 +382,7 @@ export async function updateGroupCoverPhoto(groupId: string, base64: string): Pr
 export async function updateUserProfileImage(uid: string, base64: string): Promise<void> {
     await updateDoc(doc(db, "users", uid), { profileImage: base64 });
 }
+
+export async function updateUserGender(uid: string, gender: "male" | "female"): Promise<void> {
+    await updateDoc(doc(db, "users", uid), { gender });
+}

@@ -3,8 +3,9 @@
 import { useAuth } from "@/context/AuthContext";
 import { useState, useRef } from "react";
 import { User, Lock, Camera, Loader2, ArrowLeft, Shield, Eye, EyeOff } from "lucide-react";
-import { updateUserProfileImage } from "@/lib/firebase/firestore";
+import { updateUserProfileImage, updateUserGender } from "@/lib/firebase/firestore";
 import { ChangePasswordModal } from "@/components/ChangePasswordModal";
+import { resendVerificationEmail } from "@/lib/firebase/auth";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import { motion } from "framer-motion";
@@ -13,6 +14,7 @@ export default function SettingsPage() {
   const { userData, user } = useAuth();
   const [isPasswordOpen, setIsPasswordOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isResending, setIsResending] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -126,9 +128,22 @@ export default function SettingsPage() {
                     </div>
                     <div className="space-y-1.5">
                         <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] ml-1">Gender</p>
-                        <div className="glass-panel bg-white/2 border-white/5 p-4 text-sm text-white font-bold capitalize text-center">
-                            {userData.gender}
-                        </div>
+                        <select 
+                            value={userData.gender || ""} 
+                            onChange={async (e) => {
+                                try {
+                                    await updateUserGender(userData.uid, e.target.value as any);
+                                    toast.success("Gender updated!");
+                                } catch (error) {
+                                    toast.error("Failed to update gender");
+                                }
+                            }}
+                            className="w-full glass-panel bg-white/2 border-white/5 p-4 text-sm text-white font-bold capitalize text-center appearance-none cursor-pointer hover:bg-white/5 transition-colors focus:ring-1 focus:ring-primary/40 outline-none"
+                        >
+                            {!userData.gender && <option value="" disabled>Select Gender</option>}
+                            <option value="male" className="bg-[#0f101a]">Male</option>
+                            <option value="female" className="bg-[#0f101a]">Female</option>
+                        </select>
                     </div>
                     <div className="space-y-1.5">
                         <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] ml-1">WhatsApp</p>
@@ -139,25 +154,60 @@ export default function SettingsPage() {
                 </div>
             </section>
 
-            <section className="glass-panel p-8 border-l-orange-500/30">
+            <section className="glass-panel p-8 border-l-primary/30">
                 <div className="flex items-center gap-3 mb-8">
-                    <div className="w-10 h-10 rounded-xl bg-orange-500/20 flex items-center justify-center">
-                        <Shield className="w-5 h-5 text-orange-400" />
+                    <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
+                        <Shield className="w-5 h-5 text-primary" />
                     </div>
-                    <h3 className="text-lg font-bold text-white tracking-tight uppercase">Security</h3>
+                    <h3 className="text-lg font-bold text-white tracking-tight uppercase">Account Security</h3>
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-6 p-6 rounded-2xl bg-white/2 border border-white/5">
-                    <div>
-                        <h4 className="text-white font-bold text-sm mb-1 uppercase tracking-tight">Account Password</h4>
-                        <p className="text-[10px] text-white/40 font-medium leading-relaxed">Update your password regularly to keep your account secure.</p>
+                <div className="space-y-4">
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-6 p-6 rounded-2xl bg-white/2 border border-white/5">
+                        <div>
+                            <div className="flex items-center gap-2 mb-1">
+                                <h4 className="text-white font-bold text-sm uppercase tracking-tight">Email Verification</h4>
+                                {user?.emailVerified ? (
+                                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[8px] font-black uppercase">Verified</span>
+                                ) : (
+                                    <span className="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-400 text-[8px] font-black uppercase">Unverified</span>
+                                )}
+                            </div>
+                            <p className="text-[10px] text-white/40 font-medium leading-relaxed">Ensure your email is verified to keep your account safe.</p>
+                        </div>
+                        {!user?.emailVerified && (
+                            <button 
+                                onClick={async () => {
+                                    setIsResending(true);
+                                    try {
+                                        await resendVerificationEmail();
+                                        toast.success("Verification email sent!");
+                                    } catch (e: any) {
+                                        toast.error(e.message || "Failed to resend");
+                                    } finally {
+                                        setIsResending(false);
+                                    }
+                                }}
+                                disabled={isResending}
+                                className="glass-button text-[10px] py-2.5 px-6 shrink-0"
+                            >
+                                {isResending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Resend Link"}
+                            </button>
+                        )}
                     </div>
-                    <button 
-                        onClick={() => setIsPasswordOpen(true)}
-                        className="glass-button text-[10px] py-2.5 px-6 shrink-0"
-                    >
-                        <Lock className="w-3.5 h-3.5 mr-2" /> Change Password
-                    </button>
+
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-6 p-6 rounded-2xl bg-white/2 border border-white/5">
+                        <div>
+                            <h4 className="text-white font-bold text-sm mb-1 uppercase tracking-tight">Account Password</h4>
+                            <p className="text-[10px] text-white/40 font-medium leading-relaxed">Update your password regularly to keep your account secure.</p>
+                        </div>
+                        <button 
+                            onClick={() => setIsPasswordOpen(true)}
+                            className="glass-button text-[10px] py-2.5 px-6 shrink-0"
+                        >
+                            <Lock className="w-3.5 h-3.5 mr-2" /> Change Password
+                        </button>
+                    </div>
                 </div>
             </section>
         </div>
