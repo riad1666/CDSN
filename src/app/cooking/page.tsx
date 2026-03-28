@@ -1,17 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowLeft, ChevronLeft, ChevronRight, Calendar as CalendarIcon, LayoutGrid, Plus } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Calendar as CalendarIcon, LayoutGrid, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { db } from "@/lib/firebase/config";
-import { collection, query, orderBy, onSnapshot, where } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot, where, doc, updateDoc } from "firebase/firestore";
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval } from "date-fns";
 import { getApprovedUsers, UserBasicInfo } from "@/lib/firebase/firestore";
 import toast from "react-hot-toast";
 import { useAuth } from "@/context/AuthContext";
 import { motion } from "framer-motion";
 import { AssignCookingModal } from "@/components/AssignCookingModal";
-import { subscribeToUserGroups, Group } from "@/lib/firebase/firestore";
+import { subscribeToUserGroups, Group, deleteCookingSchedule } from "@/lib/firebase/firestore";
 
 interface CookingSchedule {
   id: string;
@@ -67,6 +67,16 @@ export default function CookingPage() {
 
   const userRole = group?.memberRoles?.[userData?.uid || ""] || "member";
   const isAdmin = userRole === "admin" || userRole === "owner";
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to remove this cooking duty?")) return;
+    try {
+        await deleteCookingSchedule(id);
+        toast.success("Duty removed");
+    } catch (error) {
+        toast.error("Failed to remove duty");
+    }
+  };
 
   if (!userData?.currentGroupId) {
     return (
@@ -243,9 +253,19 @@ export default function CookingPage() {
                       <div className="text-white/40 text-xs mt-0.5">Room {u.room}</div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-white font-bold text-sm md:text-md">{s.date}</div>
-                    <div className="text-xs text-white/50 mt-1 uppercase tracking-wider">{format(new Date(s.date), "EEEE")}</div>
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <div className="text-white font-bold text-sm md:text-md">{s.date}</div>
+                      <div className="text-xs text-white/50 mt-1 uppercase tracking-wider">{format(new Date(s.date), "EEEE")}</div>
+                    </div>
+                    {isAdmin && (
+                      <button 
+                          onClick={() => handleDelete(s.id)}
+                          className="w-8 h-8 rounded-lg bg-rose-500/10 text-rose-500 flex items-center justify-center hover:bg-rose-500 hover:text-white transition-all ml-2"
+                      >
+                          <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                </div>
              )

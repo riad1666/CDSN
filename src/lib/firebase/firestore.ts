@@ -171,6 +171,7 @@ export interface Group {
   isDeleted: boolean;
   memberIds: string[];
   memberRoles: Record<string, "owner" | "admin" | "member">;
+  coverImage?: string; // Base64 or URL
 }
 
 export interface GroupMember {
@@ -364,4 +365,18 @@ export function subscribeToGroupActivity(groupId: string, callback: (logs: Activ
   return onSnapshot(q, (snap) => {
     callback(snap.docs.map(d => ({ id: d.id, ...d.data() } as ActivityLog)));
   });
+}
+
+// --- NEW HELPERS ---
+
+export async function deleteCookingSchedule(id: string): Promise<void> {
+    await updateDoc(doc(db, "cookingSchedules", id), { isDeleted: true });
+}
+
+export async function updateGroupCoverPhoto(groupId: string, base64: string): Promise<void> {
+    await updateDoc(doc(db, "groups", groupId), { coverImage: base64 });
+}
+
+export async function updateUserProfileImage(uid: string, base64: string): Promise<void> {
+    await updateDoc(doc(db, "users", uid), { profileImage: base64 });
 }

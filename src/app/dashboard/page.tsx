@@ -1,14 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { Bell, TrendingUp, TrendingDown, DollarSign, User as UserIcon, Plus, Lock, ChefHat, LayoutGrid, Users } from "lucide-react";
-import { subscribeToNotices, subscribeToExpenses, subscribeToSettlements, getApprovedUsers, Notice, Expense, Settlement, UserBasicInfo } from "@/lib/firebase/firestore";
+import { Bell, TrendingUp, TrendingDown, DollarSign, User as UserIcon, Plus, Lock, ChefHat, LayoutGrid, Users, Loader2, Camera, Trash2, X, PlusCircle } from "lucide-react";
+import { subscribeToNotices, subscribeToExpenses, subscribeToSettlements, getApprovedUsers, Notice, Expense, Settlement, UserBasicInfo, Group, subscribeToUserGroups, updateGroupCoverPhoto } from "@/lib/firebase/firestore";
 import { format } from "date-fns";
 import Link from "next/link";
 import { doc, updateDoc, collection, query, where, orderBy, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import { motion, AnimatePresence } from "framer-motion";
+import toast from "react-hot-toast";
 
 import { AddExpenseModal } from "@/components/AddExpenseModal";
 import { SettlePaymentModal } from "@/components/SettlePaymentModal";
@@ -27,6 +28,9 @@ export default function DashboardPage() {
   const [cookingDate, setCookingDate] = useState<string | null>(null);
   const [personalBalance, setPersonalBalance] = useState(0);
   const [quickSettleUser, setQuickSettleUser] = useState<string | null>(null);
+  const [group, setGroup] = useState<Group | null>(null);
+  const [isUpdatingCover, setIsUpdatingCover] = useState(false);
+  const coverInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!userData?.currentGroupId) return;
@@ -72,14 +76,58 @@ export default function DashboardPage() {
       }
     );
 
+    // Subscribe to group data
+    const unsubGroup = subscribeToUserGroups(userData.uid, (groups) => {
+        const current = groups.find(g => g.id === userData.currentGroupId);
+        if (current) setGroup(current);
+    });
+
     return () => {
       unsubNotices();
       unsubExpenses();
       unsubSettlements();
       unsubCooking();
       unsubPersonal();
+      unsubGroup();
     };
   }, [userData?.uid, userData?.currentGroupId]);
+
+  const userRole = group?.memberRoles?.[userData?.uid || ""] || "member";
+  const isAdmin = userRole === "admin" || userRole === "owner";
+
+  const handleCoverChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !userData?.currentGroupId) return;
+
+    if (file.size > 1.5 * 1024 * 1024) { // Slightly larger for covers
+        return toast.error("Cover image too large (max 1.5MB)");
+    }
+
+    setIsUpdatingCover(true);
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+        const base64String = reader.result as string;
+        try {
+            await updateGroupCoverPhoto(userData.currentGroupId!, base64String);
+            toast.success("Cover photo updated!");
+        } catch (error) {
+            toast.error("Failed to update cover photo");
+        } finally {
+            setIsUpdatingCover(false);
+        }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleDeleteNotice = async (id: string) => {
+    if (!confirm("Remove this notice?")) return;
+    try {
+        await updateDoc(doc(db, "notices", id), { isDeleted: true });
+        toast.success("Notice removed");
+    } catch (error) {
+        toast.error("Failed to remove notice");
+    }
+  };
 
   if (!userData?.currentGroupId) {
     return (
@@ -165,19 +213,70 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      {/* Group Header with Cover Photo */}
+      <div className="relative h-48 md:h-64 rounded-3xl overflow-hidden mb-8 border border-white/10 group/cover bg-linear-to-br from-indigo-900/40 to-black/40">
+        {group?.coverImage ? (
+            <img src={group.coverImage} className="w-full h-full object-cover" alt="Group Cover" />
+        ) : (
+            <div className="w-full h-full flex items-center justify-center">
+                <Users className="w-16 h-16 text-white/5" />
+            </div>
+        )}
+        <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/20 to-transparent"></div>
+        
+        <div className="absolute bottom-6 left-8 flex items-end gap-6 w-full pr-12">
+            <div className="relative shrink-0">
+                <div className="w-20 h-20 md:w-24 md:h-24 rounded-2xl bg-[#0f101a] border-4 border-[#0f101a] overflow-hidden shadow-2xl">
+                    {group?.profileImage ? (
+                        <img src={group.profileImage} className="w-full h-full object-cover" alt={group.name} />
+                    ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-primary/20 text-primary font-black text-2xl uppercase italic tracking-tighter">
+                            {group?.name?.substring(0, 2)}
+                        </div>
+                    )}
+                </div>
+            </div>
+            <div className="flex-1 pb-1">
+                <h1 className="text-3xl md:text-4xl font-black text-white tracking-tighter uppercase italic leading-none">{group?.name}</h1>
+                <p className="text-[10px] text-white/40 font-bold uppercase tracking-[0.3em] mt-2 flex items-center gap-2">
+                    <Users className="w-3 h-3" /> {group?.memberIds?.length || 0} Members • Group ID: {group?.inviteCode}
+                </p>
+            </div>
+            
+            <div className="flex gap-2 mb-1">
+                {isAdmin && (
+                    <button 
+                        onClick={() => coverInputRef.current?.click()}
+                        disabled={isUpdatingCover}
+                        className="glass-button py-2 px-3 text-[10px] flex items-center gap-2 border-white/20 hover:bg-white/10"
+                    >
+                        {isUpdatingCover ? <Loader2 className="w-3 h-3 animate-spin"/> : <Camera className="w-3.5 h-3.5" />}
+                        <span className="hidden md:inline">Edit Cover</span>
+                    </button>
+                )}
+                <input type="file" ref={coverInputRef} onChange={handleCoverChange} className="hidden" accept="image/*" />
+            </div>
+        </div>
+      </div>
+
       <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
-              <Users className="w-5 h-5 text-primary" />
+              <PlusCircle className="w-5 h-5 text-primary" />
             </div>
-            <h2 className="text-2xl font-bold text-white tracking-tight">Group Dashboard</h2>
+            <h2 className="text-2xl font-black text-white tracking-tight uppercase italic">Transactions</h2>
           </div>
           <div className="flex gap-3">
-              <button onClick={() => setExpenseOpen(true)} className="glass-button text-xs px-4 py-2">
-                <Plus className="w-4 h-4" /> Add Expense
+              {isAdmin && (
+                <Link href="/admin/notices" className="glass-button-secondary text-[10px] px-4 py-2 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 font-black tracking-widest hover:bg-indigo-500 hover:text-white">
+                   Manage Notices
+                </Link>
+              )}
+              <button onClick={() => setExpenseOpen(true)} className="glass-button text-xs px-4 py-2 font-black tracking-widest uppercase">
+                Add Expense
               </button>
-              <button onClick={() => setSettleOpen(true)} className="glass-button-secondary text-xs px-4 py-2 bg-white/5 border border-white/10 hover:bg-white/10">
-                <DollarSign className="w-4 h-4" /> Settle All
+              <button onClick={() => setSettleOpen(true)} className="glass-button-secondary text-xs px-4 py-2 bg-white/5 border border-white/10 hover:bg-white/10 font-black tracking-widest uppercase">
+                 Settle All
               </button>
           </div>
       </div>
@@ -202,7 +301,15 @@ export default function DashboardPage() {
          {notices.map(notice => {
             const theme = getNoticeTheme(notice.type);
             return (
-              <div key={notice.id} className={`p-5 rounded-2xl border ${theme.border} ${theme.bg} backdrop-blur-md`}>
+              <div key={notice.id} className={`p-5 rounded-2xl border ${theme.border} ${theme.bg} backdrop-blur-md relative group/notice transition-all hover:scale-[1.02]`}>
+                {isAdmin && (
+                    <button 
+                        onClick={() => handleDeleteNotice(notice.id)}
+                        className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-rose-500 text-white flex items-center justify-center opacity-0 group-hover/notice:opacity-100 transition-all shadow-lg hover:bg-rose-600 z-10"
+                    >
+                        <X className="w-4 h-4" />
+                    </button>
+                )}
                 <div className="flex items-center justify-between mb-3">
                   <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full text-white uppercase tracking-wide ${theme.tag}`}>
                     {notice.type}

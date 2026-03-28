@@ -183,7 +183,15 @@ export const Sidebar = () => {
       )}
 
       {/* Bottom Actions */}
-      <div className="mt-auto flex flex-col items-center gap-4">
+      <div className="mt-auto flex flex-col items-center gap-4 border-t border-white/5 pt-6 w-full">
+        <Link href="/settings" className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all group relative ${
+            pathname === "/settings" ? "bg-primary text-white" : "bg-white/5 text-white/30 hover:bg-white/10 hover:text-white"
+        }`}>
+          <Settings className="w-5 h-5 transition-transform group-hover:rotate-45" />
+          <span className="absolute left-16 top-1/2 -translate-y-1/2 px-2 py-1 bg-white/10 backdrop-blur-md rounded text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
+            Settings
+          </span>
+        </Link>
         <button onClick={handleSignOut} className="w-12 h-12 rounded-2xl bg-white/5 text-white/30 hover:bg-rose-500/10 hover:text-rose-400 transition-all group relative">
           <LogOut className="w-5 h-5" />
           <span className="absolute left-16 top-1/2 -translate-y-1/2 px-2 py-1 bg-white/10 backdrop-blur-md rounded text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
