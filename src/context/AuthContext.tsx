@@ -16,6 +16,7 @@ export interface UserData {
   profileImage: string;
   room: string;
   whatsapp: string;
+  gender: "male" | "female";
   groupsJoined?: string[]; // Array of group IDs
   currentGroupId?: string; // Currently active group ID
 }

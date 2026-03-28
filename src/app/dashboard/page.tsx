@@ -14,6 +14,7 @@ import toast from "react-hot-toast";
 import { AddExpenseModal } from "@/components/AddExpenseModal";
 import { SettlePaymentModal } from "@/components/SettlePaymentModal";
 import { ChangePasswordModal } from "@/components/ChangePasswordModal";
+import { CreateNoticeModal } from "@/components/CreateNoticeModal";
 
 export default function DashboardPage() {
   const { userData } = useAuth();
@@ -30,6 +31,7 @@ export default function DashboardPage() {
   const [quickSettleUser, setQuickSettleUser] = useState<string | null>(null);
   const [group, setGroup] = useState<Group | null>(null);
   const [isUpdatingCover, setIsUpdatingCover] = useState(false);
+  const [isNoticeOpen, setNoticeOpen] = useState(false);
   const coverInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -268,9 +270,17 @@ export default function DashboardPage() {
           </div>
           <div className="flex gap-3">
               {isAdmin && (
-                <Link href="/admin/notices" className="glass-button-secondary text-[10px] px-4 py-2 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 font-black tracking-widest hover:bg-indigo-500 hover:text-white">
-                   Manage Notices
-                </Link>
+                <>
+                    <button 
+                        onClick={() => setNoticeOpen(true)}
+                        className="glass-button text-[10px] px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-black tracking-widest hover:bg-emerald-500 hover:text-white"
+                    >
+                        <PlusCircle className="w-3.5 h-3.5 mr-2" /> Add Notice
+                    </button>
+                    <Link href="/admin/notices" className="glass-button-secondary text-[10px] px-4 py-2 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 font-black tracking-widest hover:bg-indigo-500 hover:text-white">
+                        Manage Notices
+                    </Link>
+                </>
               )}
               <button onClick={() => setExpenseOpen(true)} className="glass-button text-xs px-4 py-2 font-black tracking-widest uppercase">
                 Add Expense
@@ -531,6 +541,12 @@ export default function DashboardPage() {
         targetUserId={quickSettleUser || undefined}
       />
       <ChangePasswordModal isOpen={isPasswordOpen} onClose={() => setPasswordOpen(false)} />
+      
+      <CreateNoticeModal 
+        isOpen={isNoticeOpen} 
+        onClose={() => setNoticeOpen(false)} 
+        groupId={userData.currentGroupId!} 
+      />
     </div>
   );
 }

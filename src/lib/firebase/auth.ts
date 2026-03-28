@@ -17,6 +17,7 @@ export interface RegisterData {
   room: string;
   studentId: string;
   dob: string;
+  gender: "male" | "female";
   password?: string;
   profileImage?: string;
 }
@@ -52,6 +53,7 @@ export const registerUser = async (data: RegisterData, imageFile: File) => {
       room: data.room,
       studentId: data.studentId,
       dob: data.dob,
+      gender: data.gender,
       profileImage: imageUrl,
       role: "user",
       status: "pending",

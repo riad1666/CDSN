@@ -40,6 +40,7 @@ export interface UserBasicInfo {
   room: string;
   whatsapp: string;
   role: "user" | "admin" | "superadmin";
+  gender: "male" | "female";
   dob?: string;
   status: "pending" | "approved" | "rejected";
 }
@@ -95,6 +96,7 @@ export const getApprovedUsers = async (): Promise<UserBasicInfo[]> => {
       room: data.room, 
       whatsapp: data.whatsapp, 
       role: data.role,
+      gender: data.gender,
       dob: data.dob,
       status: data.status
     });

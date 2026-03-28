@@ -120,13 +120,19 @@ export default function SettingsPage() {
                     </div>
                     <div className="space-y-1.5">
                         <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] ml-1">Room Number</p>
-                        <div className="glass-panel bg-white/2 border-white/5 p-4 text-sm text-white font-bold">
+                        <div className="glass-panel bg-white/2 border-white/5 p-4 text-sm text-white font-bold text-center">
                             {userData.room}
                         </div>
                     </div>
                     <div className="space-y-1.5">
+                        <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] ml-1">Gender</p>
+                        <div className="glass-panel bg-white/2 border-white/5 p-4 text-sm text-white font-bold capitalize text-center">
+                            {userData.gender}
+                        </div>
+                    </div>
+                    <div className="space-y-1.5">
                         <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] ml-1">WhatsApp</p>
-                        <div className="glass-panel bg-white/2 border-white/5 p-4 text-sm text-white font-medium">
+                        <div className="glass-panel bg-white/2 border-white/5 p-4 text-sm text-white font-medium text-center">
                             {userData.whatsapp}
                         </div>
                     </div>
