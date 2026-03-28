@@ -95,9 +95,9 @@ export function UserHeader() {
   const unreadCount = notifications.filter(n => n.status === "unread").length;
 
   return (
-    <header className="glass-panel rounded-none border-x-0 border-t-0 border-b border-white/5 px-6 py-4 flex items-center justify-between sticky top-0 z-40 bg-[#161724]/80 backdrop-blur-md">
-      <div className="flex items-center gap-8 flex-1">
-         <img src="/logo.png" alt="CDS Logo" className="w-10 h-10 object-contain hidden md:block" />
+    <header className="glass-panel rounded-none border-x-0 border-t-0 border-b border-white/5 px-4 md:px-6 py-3 md:py-4 flex items-center justify-between sticky top-0 z-40 bg-[#161724]/80 backdrop-blur-md">
+      <div className="flex items-center gap-4 md:gap-8 flex-1">
+         <img src="/logo.png" alt="CDS Logo" className="w-8 h-8 md:w-10 md:h-10 object-contain" />
          
          {/* Global Search Bar */}
          <div className="relative max-w-md w-full">
@@ -105,8 +105,8 @@ export function UserHeader() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 group-focus-within:text-primary transition-colors" />
                 <input 
                     type="text" 
-                    placeholder="Search user by Student ID..."
-                    className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 pl-10 pr-10 text-sm text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all"
+                    placeholder="Search..."
+                    className="w-full bg-white/5 border border-white/10 rounded-xl py-2 md:py-2.5 pl-9 md:pl-10 pr-10 text-xs md:text-sm text-white placeholder:text-white/30 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                 />
@@ -195,10 +195,10 @@ export function UserHeader() {
             <div className="relative">
                 <button 
                     onClick={() => setShowNotifications(!showNotifications)}
-                    className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${showNotifications ? 'bg-primary/20 text-primary' : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'}`}
+                    className={`w-9 h-9 md:w-10 md:h-10 rounded-xl flex items-center justify-center transition-all ${showNotifications ? 'bg-primary/20 text-primary' : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'}`}
                 >
-                    <Bell className="w-5 h-5" />
-                    {unreadCount > 0 && <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full animate-pulse border-2 border-[#161724]"></span>}
+                    <Bell className="w-4 h-4 md:w-5 md:h-5" />
+                    {unreadCount > 0 && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full animate-pulse border-2 border-[#161724]"></span>}
                 </button>
                 
                 <AnimatePresence>

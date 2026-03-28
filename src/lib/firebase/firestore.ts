@@ -379,6 +379,10 @@ export async function updateGroupCoverPhoto(groupId: string, base64: string): Pr
     await updateDoc(doc(db, "groups", groupId), { coverImage: base64 });
 }
 
+export async function updateGroupProfileImage(groupId: string, base64: string): Promise<void> {
+    await updateDoc(doc(db, "groups", groupId), { profileImage: base64 });
+}
+
 export async function updateUserProfileImage(uid: string, base64: string): Promise<void> {
     await updateDoc(doc(db, "users", uid), { profileImage: base64 });
 }

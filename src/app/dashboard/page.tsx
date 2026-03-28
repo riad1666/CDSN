@@ -15,6 +15,9 @@ import { AddExpenseModal } from "@/components/AddExpenseModal";
 import { SettlePaymentModal } from "@/components/SettlePaymentModal";
 import { ChangePasswordModal } from "@/components/ChangePasswordModal";
 import { CreateNoticeModal } from "@/components/CreateNoticeModal";
+import { CreateGroupModal } from "@/components/CreateGroupModal";
+import { JoinGroupModal } from "@/components/JoinGroupModal";
+import { updateGroupProfileImage } from "@/lib/firebase/firestore";
 
 export default function DashboardPage() {
   const { userData } = useAuth();
@@ -31,8 +34,12 @@ export default function DashboardPage() {
   const [quickSettleUser, setQuickSettleUser] = useState<string | null>(null);
   const [group, setGroup] = useState<Group | null>(null);
   const [isUpdatingCover, setIsUpdatingCover] = useState(false);
+  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
   const [isNoticeOpen, setNoticeOpen] = useState(false);
+  const [isCreateOpen, setCreateOpen] = useState(false);
+  const [isJoinOpen, setJoinOpen] = useState(false);
   const coverInputRef = useRef<HTMLInputElement>(null);
+  const profileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!userData?.currentGroupId) return;
@@ -121,6 +128,25 @@ export default function DashboardPage() {
     reader.readAsDataURL(file);
   };
 
+  const handleProfileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !userData?.currentGroupId) return;
+
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      setIsUpdatingProfile(true);
+      try {
+        await updateGroupProfileImage(userData.currentGroupId!, reader.result as string);
+        toast.success("Group profile photo updated!");
+      } catch (error) {
+        toast.error("Failed to update group profile photo");
+      } finally {
+        setIsUpdatingProfile(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleDeleteNotice = async (id: string) => {
     if (!confirm("Remove this notice?")) return;
     try {
@@ -146,10 +172,13 @@ export default function DashboardPage() {
                 <p className="text-white/60 mb-8 leading-relaxed">
                     You are not currently viewing any group. Please create a new group or join an existing one using an invite code from the sidebar.
                 </p>
-                <div className="grid grid-cols-2 gap-4">
-                    <button className="glass-button text-sm py-3">Create Group</button>
-                    <button className="glass-button-secondary text-sm py-3 bg-white/5 border border-white/10">Join Group</button>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
+                    <button onClick={() => setCreateOpen(true)} className="glass-button text-sm py-3 font-black tracking-widest uppercase">Create Group</button>
+                    <button onClick={() => setJoinOpen(true)} className="glass-button-secondary text-sm py-3 bg-white/5 border border-white/10 font-black tracking-widest uppercase">Join Group</button>
                 </div>
+                
+                <CreateGroupModal isOpen={isCreateOpen} onClose={() => setCreateOpen(false)} />
+                <JoinGroupModal isOpen={isJoinOpen} onClose={() => setJoinOpen(false)} />
             </motion.div>
         </div>
     );
@@ -214,9 +243,9 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Group Header with Cover Photo */}
-      <div className="relative h-48 md:h-64 rounded-3xl overflow-hidden mb-8 border border-white/10 group/cover bg-linear-to-br from-indigo-900/40 to-black/40">
+      <div className="relative h-40 md:h-64 rounded-2xl md:rounded-3xl overflow-hidden mb-4 md:mb-8 border border-white/10 group/cover bg-linear-to-br from-indigo-900/40 to-black/40">
         {group?.coverImage ? (
             <img src={group.coverImage} className="w-full h-full object-cover" alt="Group Cover" />
         ) : (
@@ -226,9 +255,9 @@ export default function DashboardPage() {
         )}
         <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/20 to-transparent"></div>
         
-        <div className="absolute bottom-6 left-8 flex items-end gap-6 w-full pr-12">
-            <div className="relative shrink-0">
-                <div className="w-20 h-20 md:w-24 md:h-24 rounded-2xl bg-[#0f101a] border-4 border-[#0f101a] overflow-hidden shadow-2xl">
+        <div className="absolute bottom-4 md:bottom-6 left-4 md:left-8 flex items-end gap-3 md:gap-6 w-full pr-8 md:pr-12">
+            <div className="relative shrink-0 group/profile">
+                <div className="w-16 h-16 md:w-24 md:h-24 rounded-xl md:rounded-2xl bg-[#0f101a] border-2 md:border-4 border-[#0f101a] overflow-hidden shadow-2xl relative">
                     {group?.profileImage ? (
                         <img src={group.profileImage} className="w-full h-full object-cover" alt={group.name} />
                     ) : (
@@ -236,12 +265,27 @@ export default function DashboardPage() {
                             {group?.name?.substring(0, 2)}
                         </div>
                     )}
+                    
+                    {isAdmin && (
+                        <div 
+                            onClick={() => profileInputRef.current?.click()}
+                            className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover/profile:opacity-100 transition-opacity cursor-pointer"
+                        >
+                            <Camera className="w-6 h-6 text-white" />
+                        </div>
+                    )}
+                    {isUpdatingProfile && (
+                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                            <Loader2 className="w-6 h-6 text-white animate-spin" />
+                        </div>
+                    )}
                 </div>
+                <input type="file" ref={profileInputRef} onChange={handleProfileChange} className="hidden" accept="image/*" />
             </div>
             <div className="flex-1 pb-1">
-                <h1 className="text-3xl md:text-4xl font-black text-white tracking-tighter uppercase italic leading-none">{group?.name}</h1>
-                <p className="text-[10px] text-white/40 font-bold uppercase tracking-[0.3em] mt-2 flex items-center gap-2">
-                    <Users className="w-3 h-3" /> {group?.memberIds?.length || 0} Members • Group ID: {group?.inviteCode}
+                <h1 className="text-xl md:text-4xl font-black text-white tracking-tighter uppercase italic leading-none truncate">{group?.name}</h1>
+                <p className="text-[8px] md:text-[10px] text-white/40 font-bold uppercase tracking-[0.2em] md:tracking-[0.3em] mt-1 md:mt-2 flex items-center gap-2">
+                    <Users className="w-2.5 h-2.5 md:w-3 md:h-3" /> {group?.memberIds?.length || 0} <span className="hidden xs:inline">Members</span> • ID: {group?.inviteCode}
                 </p>
             </div>
             
@@ -261,32 +305,29 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
-              <PlusCircle className="w-5 h-5 text-primary" />
+            <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-primary/20 flex items-center justify-center">
+              <PlusCircle className="w-4 h-4 md:w-5 md:h-5 text-primary" />
             </div>
-            <h2 className="text-2xl font-black text-white tracking-tight uppercase italic">Transactions</h2>
+            <h2 className="text-xl md:text-2xl font-black text-white tracking-tight uppercase italic">Transactions</h2>
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-2">
               {isAdmin && (
                 <>
                     <button 
                         onClick={() => setNoticeOpen(true)}
-                        className="glass-button text-[10px] px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-black tracking-widest hover:bg-emerald-500 hover:text-white"
+                        className="glass-button text-[8px] md:text-[10px] px-3 md:px-4 py-1.5 md:py-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-black tracking-widest hover:bg-emerald-500 hover:text-white"
                     >
-                        <PlusCircle className="w-3.5 h-3.5 mr-2" /> Add Notice
+                        Notice
                     </button>
-                    <Link href="/admin/notices" className="glass-button-secondary text-[10px] px-4 py-2 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 font-black tracking-widest hover:bg-indigo-500 hover:text-white">
-                        Manage Notices
-                    </Link>
                 </>
               )}
-              <button onClick={() => setExpenseOpen(true)} className="glass-button text-xs px-4 py-2 font-black tracking-widest uppercase">
-                Add Expense
+              <button onClick={() => setExpenseOpen(true)} className="glass-button text-[9px] md:text-xs px-3 md:px-4 py-1.5 md:py-2 font-black tracking-widest uppercase">
+                Expense
               </button>
-              <button onClick={() => setSettleOpen(true)} className="glass-button-secondary text-xs px-4 py-2 bg-white/5 border border-white/10 hover:bg-white/10 font-black tracking-widest uppercase">
-                 Settle All
+              <button onClick={() => setSettleOpen(true)} className="glass-button-secondary text-[9px] md:text-xs px-3 md:px-4 py-1.5 md:py-2 bg-white/5 border border-white/10 hover:bg-white/10 font-black tracking-widest uppercase">
+                 Settle
               </button>
           </div>
       </div>

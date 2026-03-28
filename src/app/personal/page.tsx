@@ -10,6 +10,8 @@ import { useSearchParams, useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import Link from "next/link";
 
+import { TradeSearchModal } from "@/components/TradeSearchModal";
+
 export default function PersonalDashboard() {
   return (
     <Suspense fallback={<div className="h-screen flex items-center justify-center text-white/30 text-sm">Loading...</div>}>
@@ -191,6 +193,11 @@ function PersonalDashboardContent() {
               </div>
           </div>
       </section>
+
+      <TradeSearchModal 
+        isOpen={isTradeModalOpen} 
+        onClose={() => setTradeModalOpen(false)} 
+      />
     </div>
   );
 }
