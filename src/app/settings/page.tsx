@@ -5,7 +5,7 @@ import { useState, useRef } from "react";
 import { User, Lock, Camera, Loader2, ArrowLeft, Shield, Eye, EyeOff } from "lucide-react";
 import { updateUserProfileImage, updateUserGender } from "@/lib/firebase/firestore";
 import { ChangePasswordModal } from "@/components/ChangePasswordModal";
-import { resendVerificationEmail } from "@/lib/firebase/auth";
+import { resendVerificationEmail, updateUserEmail } from "@/lib/firebase/auth";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import { motion } from "framer-motion";
@@ -15,6 +15,9 @@ export default function SettingsPage() {
   const [isPasswordOpen, setIsPasswordOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isResending, setIsResending] = useState(false);
+  const [isEditingEmail, setIsEditingEmail] = useState(false);
+  const [newEmail, setNewEmail] = useState("");
+  const [isUpdatingEmail, setIsUpdatingEmail] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -128,22 +131,28 @@ export default function SettingsPage() {
                     </div>
                     <div className="space-y-1.5">
                         <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] ml-1">Gender</p>
-                        <select 
-                            value={userData.gender || ""} 
-                            onChange={async (e) => {
-                                try {
-                                    await updateUserGender(userData.uid, e.target.value as any);
-                                    toast.success("Gender updated!");
-                                } catch (error) {
-                                    toast.error("Failed to update gender");
-                                }
-                            }}
-                            className="w-full glass-panel bg-white/2 border-white/5 p-4 text-sm text-white font-bold capitalize text-center appearance-none cursor-pointer hover:bg-white/5 transition-colors focus:ring-1 focus:ring-primary/40 outline-none"
-                        >
-                            {!userData.gender && <option value="" disabled>Select Gender</option>}
-                            <option value="male" className="bg-[#0f101a]">Male</option>
-                            <option value="female" className="bg-[#0f101a]">Female</option>
-                        </select>
+                        {userData.gender ? (
+                            <div className="glass-panel bg-primary/5 border border-primary/20 p-4 text-sm text-white font-black capitalize text-center">
+                                {userData.gender}
+                            </div>
+                        ) : (
+                            <select 
+                                value={userData.gender || ""} 
+                                onChange={async (e) => {
+                                    try {
+                                        await updateUserGender(userData.uid, e.target.value as any);
+                                        toast.success("Gender updated! This cannot be changed later.");
+                                    } catch (error) {
+                                        toast.error("Failed to update gender");
+                                    }
+                                }}
+                                className="w-full glass-panel bg-white/2 border-white/5 p-4 text-sm text-white font-bold capitalize text-center appearance-none cursor-pointer hover:bg-white/5 transition-colors focus:ring-1 focus:ring-primary/40 outline-none"
+                            >
+                                <option value="" disabled>Select Gender</option>
+                                <option value="male" className="bg-[#0f101a]">Male</option>
+                                <option value="female" className="bg-[#0f101a]">Female</option>
+                            </select>
+                        )}
                     </div>
                     <div className="space-y-1.5">
                         <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] ml-1">WhatsApp</p>
@@ -164,7 +173,7 @@ export default function SettingsPage() {
 
                 <div className="space-y-4">
                     <div className="flex flex-col sm:flex-row items-center justify-between gap-6 p-6 rounded-2xl bg-white/2 border border-white/5">
-                        <div>
+                        <div className="w-full">
                             <div className="flex items-center gap-2 mb-1">
                                 <h4 className="text-white font-bold text-sm uppercase tracking-tight">Email Verification</h4>
                                 {user?.emailVerified ? (
@@ -173,9 +182,63 @@ export default function SettingsPage() {
                                     <span className="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-400 text-[8px] font-black uppercase">Unverified</span>
                                 )}
                             </div>
-                            <p className="text-[10px] text-white/40 font-medium leading-relaxed">Ensure your email is verified to keep your account safe.</p>
+                            
+                            {isEditingEmail ? (
+                                <div className="mt-3 flex gap-2">
+                                    <input 
+                                        type="email"
+                                        className="glass-input text-xs py-2 px-3 w-full"
+                                        value={newEmail}
+                                        onChange={(e) => setNewEmail(e.target.value)}
+                                        placeholder="Enter new email address"
+                                    />
+                                    <button 
+                                        onClick={async () => {
+                                            if (!newEmail || newEmail === user?.email) return setIsEditingEmail(false);
+                                            setIsUpdatingEmail(true);
+                                            try {
+                                                await updateUserEmail(newEmail);
+                                                toast.success("Email updated! Verification mail sent.");
+                                                setIsEditingEmail(false);
+                                            } catch (e: any) {
+                                                toast.error(e.message || "Failed to update email");
+                                            } finally {
+                                                setIsUpdatingEmail(false);
+                                            }
+                                        }}
+                                        disabled={isUpdatingEmail}
+                                        className="text-[10px] px-3 py-1 bg-primary/20 text-primary font-bold rounded-lg hover:bg-primary hover:text-white transition-all"
+                                    >
+                                        {isUpdatingEmail ? <Loader2 className="w-3 h-3 animate-spin"/> : "Save"}
+                                    </button>
+                                    <button 
+                                        onClick={() => setIsEditingEmail(false)}
+                                        className="text-[10px] px-3 py-1 bg-white/5 text-white/40 font-bold rounded-lg hover:bg-white/10"
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="flex items-center justify-between w-full">
+                                    <p className="text-[10px] text-white/40 font-medium leading-relaxed">
+                                        {userData.email}
+                                    </p>
+                                    {!user?.emailVerified && (
+                                        <button 
+                                            onClick={() => {
+                                                setNewEmail(userData.email);
+                                                setIsEditingEmail(true);
+                                            }}
+                                            className="text-[10px] text-primary hover:underline font-bold"
+                                        >
+                                            Change Email
+                                        </button>
+                                    )}
+                                </div>
+                            )}
                         </div>
-                        {!user?.emailVerified && (
+                        
+                        {!user?.emailVerified && !isEditingEmail && (
                             <button 
                                 onClick={async () => {
                                     setIsResending(true);

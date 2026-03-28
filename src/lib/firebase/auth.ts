@@ -5,7 +5,8 @@ import {
   signOut as firebaseSignOut,
   EmailAuthProvider,
   reauthenticateWithCredential,
-  updatePassword
+  updatePassword,
+  updateEmail
 } from "firebase/auth";
 import { doc, setDoc, getDocs, collection, query, where, updateDoc } from "firebase/firestore";
 import { auth, db } from "./config";
@@ -229,4 +230,19 @@ export const changePasswordUser = async (oldPassword: string, newPassword: strin
 
   // Update password
   await updatePassword(user, newPassword);
+};
+
+export const updateUserEmail = async (newEmail: string) => {
+  const user = auth.currentUser;
+  if (!user) throw new Error("No user found");
+  if (user.emailVerified) throw new Error("Verified email cannot be changed");
+
+  // Update in Auth
+  await updateEmail(user, newEmail);
+
+  // Update in Firestore
+  await updateDoc(doc(db, "users", user.uid), { email: newEmail });
+
+  // Resend verification for new email
+  await resendVerificationEmail();
 };
