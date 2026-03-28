@@ -17,8 +17,10 @@ export default function DebugPage() {
         return;
     }
 
+    const groupId = userData.currentGroupId;
+
     async function checkData() {
-      const gRef = doc(db, 'groups', userData.currentGroupId);
+      const gRef = doc(db, 'groups', groupId);
       const gSnap = await getDoc(gRef);
       setGroupInfo(gSnap.exists() ? gSnap.data() : { error: 'Group Not Found' });
 
@@ -26,7 +28,7 @@ export default function DebugPage() {
       const counts: any = {};
       
       for (const col of cols) {
-        const q = query(collection(db, col), where('groupId', '==', userData.currentGroupId));
+        const q = query(collection(db, col), where('groupId', '==', groupId));
         const s = await getDocs(q);
         counts[col] = s.size;
       }
