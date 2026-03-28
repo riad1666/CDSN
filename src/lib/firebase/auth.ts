@@ -61,7 +61,17 @@ export const registerUser = async (data: RegisterData, imageFile: File) => {
     });
 
     console.log("STEP 7: Sending email verification...");
-    await sendEmailVerification(user);
+    const actionCodeSettings = {
+        url: `${window.location.origin}/login`,
+        handleCodeInApp: true,
+    };
+    try {
+        await sendEmailVerification(user, actionCodeSettings);
+    } catch (ve) {
+        console.error("VERIFICATION EMAIL FAILED:", ve);
+        // We don't throw here to avoid deleting the user just because an email failed.
+        // The user can try resending from the login/settings page.
+    }
 
     console.log("STEP 8: Document saved & Email sent. Signing out.");
     await firebaseSignOut(auth);
@@ -188,7 +198,21 @@ export const loginUser = async (loginId: string, password: string) => {
 export const resendVerificationEmail = async () => {
   const user = auth.currentUser;
   if (!user) throw new Error("No user found. Please login first.");
-  await sendEmailVerification(user);
+  
+  const actionCodeSettings = {
+    url: `${window.location.origin}/login`,
+    handleCodeInApp: true,
+  };
+  
+  try {
+    await sendEmailVerification(user, actionCodeSettings);
+  } catch (error: any) {
+    console.error("RESEND FAILED:", error);
+    if (error.code === "auth/unauthorized-continue-uri") {
+        throw new Error("This domain is not authorized for email redirects. Please add it to Firebase Console > Authentication > Settings > Authorized domains.");
+    }
+    throw error;
+  }
 };
 
 export const logoutUser = async () => {
