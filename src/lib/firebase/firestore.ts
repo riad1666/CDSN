@@ -390,3 +390,28 @@ export async function updateUserProfileImage(uid: string, base64: string): Promi
 export async function updateUserGender(uid: string, gender: "male" | "female"): Promise<void> {
     await updateDoc(doc(db, "users", uid), { gender });
 }
+
+// --- MEAL PLANS ---
+export interface MealPlan {
+  id: string;
+  groupId: string;
+  date: string;
+  breakfast?: string;
+  lunch?: string;
+  dinner?: string;
+  isDeleted: boolean;
+  createdAt: string;
+}
+
+export function subscribeToMealPlans(groupId: string, callback: (meals: MealPlan[]) => void) {
+  const q = query(
+    collection(db, "mealPlans"),
+    where("groupId", "==", groupId),
+    where("isDeleted", "==", false)
+  );
+  return onSnapshot(q, (snap) => {
+    const data = snap.docs.map(d => ({ id: d.id, ...d.data() } as MealPlan));
+    data.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    callback(data);
+  });
+}

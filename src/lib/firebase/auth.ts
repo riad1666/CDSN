@@ -6,7 +6,8 @@ import {
   EmailAuthProvider,
   reauthenticateWithCredential,
   updatePassword,
-  updateEmail
+  updateEmail,
+  verifyBeforeUpdateEmail
 } from "firebase/auth";
 import { doc, setDoc, getDocs, collection, query, where, updateDoc } from "firebase/firestore";
 import { auth, db } from "./config";
@@ -235,14 +236,42 @@ export const changePasswordUser = async (oldPassword: string, newPassword: strin
 export const updateUserEmail = async (newEmail: string) => {
   const user = auth.currentUser;
   if (!user) throw new Error("No user found");
-  if (user.emailVerified) throw new Error("Verified email cannot be changed");
 
-  // Update in Auth
-  await updateEmail(user, newEmail);
-
-  // Update in Firestore
-  await updateDoc(doc(db, "users", user.uid), { email: newEmail });
-
-  // Resend verification for new email
-  await resendVerificationEmail();
+  if (!user.emailVerified) {
+    // SCENARIO 1: Unverified user correcting a wrong email (mistake at registration)
+    try {
+      console.log("Correcting unverified email address...");
+      await updateEmail(user, newEmail);
+      await updateDoc(doc(db, "users", user.uid), { email: newEmail });
+      await resendVerificationEmail();
+    } catch (error: any) {
+      console.error("EMAIL SWAP ERROR:", error);
+      if (error.code === "auth/operation-not-allowed") {
+        throw new Error("Action blocked. Please enable 'Email Link (passwordless)' in Firebase Console > Authentication > Sign-in method.");
+      }
+      if (error.code === "auth/requires-recent-login") {
+        throw new Error("Please logout and login again to change your email.");
+      }
+      throw error;
+    }
+  } else {
+    // SCENARIO 2: Verified user changing their secure email
+    const actionCodeSettings = {
+       url: `${window.location.origin}/settings`,
+       handleCodeInApp: true,
+    };
+    try {
+      console.log("Sending verification for new email address...");
+      await verifyBeforeUpdateEmail(user, newEmail, actionCodeSettings);
+      
+      // We update Firestore so the UI shows the intended new email immediately
+      await updateDoc(doc(db, "users", user.uid), { email: newEmail });
+    } catch (error: any) {
+      console.error("SECURE EMAIL UPDATE ERROR:", error);
+      if (error.code === "auth/operation-not-allowed") {
+        throw new Error("Modern email updates require 'Email Link' to be enabled in Firebase Console.");
+      }
+      throw error;
+    }
+  }
 };

@@ -14,7 +14,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { GroupInviteModal } from "./GroupInviteModal";
 
 export function UserHeader() {
-  const { userData } = useAuth();
+  const { userData, setSidebarOpen, isSidebarOpen } = useAuth();
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -184,6 +184,7 @@ export function UserHeader() {
         {/* Navigation - Dynamic based on group selection? */}
         <nav className="hidden lg:flex items-center gap-6 mr-6">
             <Link href="/dashboard/shopping" className="text-white/50 hover:text-white text-xs font-medium transition-colors">Shopping</Link>
+            <Link href="/dashboard/meal-plan" className="text-white/50 hover:text-white text-xs font-medium transition-colors">Meal Plan</Link>
             <Link href="/cooking" className="text-white/50 hover:text-white text-xs font-medium transition-colors">Cooking</Link>
         </nav>
 
@@ -227,8 +228,8 @@ export function UserHeader() {
                 </AnimatePresence>
             </div>
 
-            <button className="md:hidden text-white/70 hover:text-white transition-colors ml-2" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
-                 {isMobileMenuOpen ? <X className="w-6 h-6"/> : <Menu className="w-6 h-6"/>}
+            <button className="md:hidden text-white/70 hover:text-white transition-colors ml-2" onClick={() => setSidebarOpen(!isSidebarOpen)}>
+                 {isSidebarOpen ? <X className="w-6 h-6"/> : <Menu className="w-6 h-6"/>}
             </button>
         </div>
       </div>
