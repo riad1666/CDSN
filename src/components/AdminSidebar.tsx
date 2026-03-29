@@ -17,7 +17,7 @@ export function AdminSidebar() {
   ];
 
   return (
-    <aside className="w-64 glass-panel rounded-none border-y-0 border-l-0 border-r border-white/5 flex flex-col hidden lg:flex z-50">
+    <aside className="w-64 glass-panel rounded-none border-y-0 border-l-0 border-r border-white/5 flex-col hidden lg:flex z-50">
       <div className="h-20 flex items-center px-6 border-b border-white/5">
         <div className="flex items-center gap-3">
           <img src="/logo.png" alt="Admin Logo" className="w-10 h-10 object-contain" />
@@ -27,10 +27,11 @@ export function AdminSidebar() {
       
       <nav className="flex-1 py-6 px-4 space-y-2">
         {links.map(link => {
+          // If superadmin, we might want to consolidate some links or keep them all for oversight
           const isActive = pathname.startsWith(link.href);
           const Icon = link.icon;
           return (
-            <Link key={link.href} href={link.href} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isActive ? 'bg-gradient-to-r from-teal-400 to-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'text-white/50 hover:bg-white/5 hover:text-white'}`}>
+            <Link key={link.href} href={link.href} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isActive ? 'bg-rose-500 text-white shadow-[0_0_15px_rgba(244,63,94,0.3)]' : 'text-white/50 hover:bg-white/5 hover:text-white'}`}>
               <Icon className="w-5 h-5" />
               <span className="font-medium text-sm">{link.label}</span>
             </Link>

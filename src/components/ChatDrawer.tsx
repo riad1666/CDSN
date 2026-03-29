@@ -27,15 +27,18 @@ export function ChatDrawer({ isOpen, onClose, chatId, chatName, type }: ChatDraw
   useEffect(() => {
     if (!chatId || !isOpen) return;
 
+    // Only set loading if we don't have messages for this chat yet or chatId changed
     setLoading(true);
+    
     const unsubMessages = subscribeToMessages(chatId, (data) => {
       setMessages(data);
       setLoading(false);
-      // Mark as read
-      if (userData?.uid) {
-        markChatAsRead(userData.uid, chatId);
-      }
     });
+
+    // Mark as read once when opening or when chatId changes
+    if (userData?.uid) {
+      markChatAsRead(userData.uid, chatId);
+    }
 
     getApprovedUsers().then(list => {
       const map: Record<string, UserBasicInfo> = {};
@@ -45,6 +48,16 @@ export function ChatDrawer({ isOpen, onClose, chatId, chatName, type }: ChatDraw
 
     return () => unsubMessages();
   }, [chatId, isOpen, userData?.uid]);
+
+  // Handle marking as read for subsequent new messages while open
+  useEffect(() => {
+    if (isOpen && messages.length > 0 && userData?.uid) {
+      const lastMsg = messages[messages.length - 1];
+      if (lastMsg.senderId !== userData.uid) {
+        markChatAsRead(userData.uid, chatId);
+      }
+    }
+  }, [messages.length, isOpen, chatId, userData?.uid]);
 
   useEffect(() => {
     if (scrollRef.current) {

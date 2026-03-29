@@ -11,11 +11,11 @@ import toast from "react-hot-toast";
 import { ChatDrawer } from "@/components/ChatDrawer";
 import { format } from "date-fns";
 
-type Tab = "overview" | "users" | "groups" | "activities" | "chats";
+type Tab = "matrix" | "users" | "groups" | "logs" | "monitor" | "config";
 
 export default function SuperAdminPage() {
   const { userData: myData } = useAuth();
-  const [activeTab, setActiveTab] = useState<Tab>("overview");
+  const [activeTab, setActiveTab] = useState<Tab>("matrix");
   const [groups, setGroups] = useState<Group[]>([]);
   const [users, setUsers] = useState<UserBasicInfo[]>([]);
   const [activities, setActivities] = useState<any[]>([]);
@@ -81,33 +81,38 @@ export default function SuperAdminPage() {
   return (
     <div className="space-y-8 pb-20 max-w-7xl mx-auto px-4 md:px-0">
       {/* Header */}
+      {/* God Level Navigation */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-rose-500/20 flex items-center justify-center border border-rose-500/30 shadow-[0_0_20px_rgba(244,63,94,0.2)]">
-            <Shield className="w-8 h-8 text-rose-400" />
+        <div className="flex items-center gap-5">
+          <div className="relative group">
+            <div className="absolute -inset-1 bg-rose-500 rounded-2xl blur-md opacity-25 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
+            <div className="relative w-16 h-16 rounded-2xl bg-[#0f101a] flex items-center justify-center border border-rose-500/50 shadow-[0_0_20px_rgba(244,63,94,0.3)]">
+              <Shield className="w-10 h-10 text-rose-500 drop-shadow-[0_0_8px_rgba(244,63,94,0.8)]" />
+            </div>
           </div>
           <div>
-            <h2 className="text-3xl font-black text-white tracking-tighter uppercase italic">Control Center</h2>
-            <p className="text-[10px] font-black text-rose-500 tracking-widest uppercase flex items-center gap-2">
-              <Zap className="w-3 h-3 animate-pulse" /> System God Mode — Full Write Access
-            </p>
+            <h2 className="text-4xl font-black text-white tracking-tighter uppercase italic leading-none">The Matrix</h2>
+            <div className="flex items-center gap-2 mt-2">
+              <span className="flex h-2 w-2 rounded-full bg-rose-500 animate-pulse"></span>
+              <p className="text-[10px] font-black text-rose-500/80 tracking-[0.3em] uppercase">System God Mode — Authority Level 0</p>
+            </div>
           </div>
         </div>
 
-        {/* Global Tabs */}
-        <div className="flex bg-white/5 p-1 rounded-2xl border border-white/5 overflow-x-auto no-scrollbar">
+        <div className="flex bg-white/5 p-1 rounded-2xl border border-white/5 overflow-x-auto no-scrollbar backdrop-blur-xl">
             {([
-                { id: "overview", label: "Overview", icon: Shield },
+                { id: "matrix", label: "Stats", icon: Zap },
                 { id: "users", label: "Users", icon: Users },
                 { id: "groups", label: "Groups", icon: LayoutGrid },
-                { id: "activities", label: "Log", icon: History },
-                { id: "chats", label: "Chats", icon: MessageSquare },
+                { id: "logs", label: "System Log", icon: History },
+                { id: "monitor", label: "Channel Monitor", icon: MessageSquare },
+                { id: "config", label: "Core Config", icon: Settings },
             ] as const).map(tab => (
                 <button
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center gap-2 px-4 md:px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${
-                        activeTab === tab.id ? 'bg-rose-500 text-white shadow-lg' : 'text-white/40 hover:text-white hover:bg-white/5'
+                    onClick={() => setActiveTab(tab.id as any)}
+                    className={`flex items-center gap-3 px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${
+                        activeTab === tab.id ? 'bg-rose-500 text-white shadow-[0_4px_15px_rgba(244,63,94,0.4)]' : 'text-white/40 hover:text-white hover:bg-white/5'
                     }`}
                 >
                     <tab.icon className="w-4 h-4" /> {tab.label}
@@ -116,19 +121,39 @@ export default function SuperAdminPage() {
         </div>
       </div>
 
-      {activeTab === "overview" && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      {activeTab === "matrix" && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 animate-in fade-in slide-in-from-bottom-8 duration-700">
             {[
-                { label: "Global Users", val: users.length, color: "text-white" },
-                { label: "Active Groups", val: groups.length, color: "text-primary" },
-                { label: "Pending Approvals", val: users.filter(u => u.status === "pending").length, color: "text-orange-400" },
-                { label: "Daily Activities", val: activities.length, color: "text-emerald-400" },
-            ].map(stat => (
-                <div key={stat.label} className="glass-panel p-6 border-white/5 group hover:border-rose-500/30 transition-all">
-                    <p className="text-white/30 text-[10px] font-black uppercase tracking-widest mb-2">{stat.label}</p>
-                    <h3 className={`text-4xl font-black tracking-tighter ${stat.color}`}>{stat.val}</h3>
-                </div>
+                { label: "Neural Network", val: users.length, color: "text-white", sub: "Connected Users" },
+                { id: "clusters", label: "Active Clusters", val: groups.length, color: "text-primary", sub: "Operational Groups" },
+                { label: "Isolation Ward", val: users.filter(u => u.status === "pending").length, color: "text-orange-400", sub: "Awaiting Clearance" },
+                { label: "Data Flux", val: activities.length, color: "text-emerald-400", sub: "Events Handled" },
+            ].map((stat, i) => (
+                <motion.div 
+                    key={i} 
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: i * 0.1 }}
+                    className="glass-panel p-8 border-white/5 relative overflow-hidden group hover:border-rose-500/30 transition-all cursor-default"
+                >
+                    <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-30 transition-opacity">
+                        <Zap className="w-12 h-12 text-white" />
+                    </div>
+                    <p className="text-white/30 text-[9px] font-black uppercase tracking-[0.3em] mb-3">{stat.label}</p>
+                    <h3 className={`text-5xl font-black tracking-tighter ${stat.color} mb-1`}>{stat.val}</h3>
+                    <p className="text-[8px] text-white/10 font-bold uppercase">{stat.sub}</p>
+                </motion.div>
             ))}
+
+            <div className="col-span-2 md:col-span-4 glass-panel p-1 border-white/5">
+                <div className="bg-white/2 p-10 rounded-2xl flex items-center justify-center text-center">
+                    <div>
+                        <Shield className="w-12 h-12 text-rose-500/20 mx-auto mb-4" />
+                        <h4 className="text-xl font-black text-white/20 uppercase tracking-[0.5em] italic">Omniscience Engaged</h4>
+                        <p className="text-[10px] text-white/10 mt-2 font-bold uppercase tracking-widest">Global Watchtower Active — High Integrity Enforcement</p>
+                    </div>
+                </div>
+            </div>
         </div>
       )}
 
@@ -224,59 +249,76 @@ export default function SuperAdminPage() {
         </section>
       )}
 
-      {activeTab === "activities" && (
-        <section className="glass-panel p-8 animate-in fade-in duration-300">
-             <h3 className="text-xl font-bold text-white tracking-tight mb-8 flex items-center gap-3">
-                <History className="w-6 h-6 text-emerald-400" /> Real-time System Log
-            </h3>
-            <div className="space-y-3">
+      {activeTab === "logs" && (
+        <section className="glass-panel p-8 animate-in fade-in duration-500">
+             <div className="flex items-center justify-between mb-8">
+                 <h3 className="text-xl font-bold text-white tracking-tight flex items-center gap-3">
+                    <History className="w-6 h-6 text-emerald-400" /> Neural Feed (Global Activity)
+                </h3>
+                <div className="text-[8px] font-black text-white/20 uppercase tracking-[0.2em] px-3 py-1 bg-white/5 rounded-full border border-white/5">Auto-refresh Active</div>
+             </div>
+            <div className="space-y-2 max-h-[700px] overflow-y-auto pr-4 custom-scrollbar">
                 {activities.map(act => (
-                    <div key={act.id} className="flex items-center gap-4 p-4 border-b border-white/5 hover:bg-white/2 group transition-all">
-                        <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center shrink-0">
-                            <Shield className="w-4 h-4 text-white/20" />
+                    <div key={act.id} className="flex items-center gap-5 p-4 border-b border-white/5 hover:bg-white/3 group transition-all rounded-xl">
+                        <div className="w-12 h-12 rounded-xl bg-[#0f101a] border border-white/5 flex items-center justify-center shrink-0 shadow-lg group-hover:border-emerald-500/30 transition-colors">
+                            <Zap className="w-5 h-5 text-emerald-400/50 group-hover:text-emerald-400 transition-colors" />
                         </div>
                         <div className="flex-1">
-                            <div className="flex items-center gap-2 font-bold mb-0.5">
-                                <span className="text-xs text-white/80">{act.message}</span>
+                            <div className="flex items-center gap-3 font-bold mb-1">
+                                <span className="text-sm text-white/90 leading-tight">{act.message}</span>
                             </div>
-                            <p className="text-[8px] text-white/20 uppercase tracking-widest font-black">
-                                Group: <span className="text-primary">{groups.find(g => g.id === act.groupId)?.name || "Unknown"}</span> • {act.createdAt ? format(new Date(act.createdAt), "HH:mm:ss dd MMM") : "..."}
-                            </p>
+                            <div className="flex items-center gap-4">
+                                <p className="text-[8px] text-white/20 uppercase tracking-widest font-black">
+                                    Source: <span className="text-primary">{groups.find(g => g.id === act.groupId)?.name || "System"}</span> 
+                                </p>
+                                <p className="text-[8px] text-white/20 uppercase tracking-widest font-black">
+                                    Time: <span className="text-emerald-400/50">{act.createdAt ? format(new Date(act.createdAt), "HH:mm:ss") : "N/A"}</span>
+                                </p>
+                                <p className="text-[8px] text-white/20 uppercase tracking-widest font-black">
+                                    Date: <span className="text-white/10">{act.createdAt ? format(new Date(act.createdAt), "dd MMM yyyy") : "N/A"}</span>
+                                </p>
+                            </div>
                         </div>
                     </div>
                 ))}
-                {activities.length === 0 && <div className="text-center py-20 text-white/10 font-black uppercase tracking-[0.3em]">Monitoring for actions...</div>}
+                {activities.length === 0 && <div className="text-center py-24 text-white/5 font-black uppercase tracking-[0.5em] italic">No neural data detected...</div>}
             </div>
         </section>
       )}
 
-      {activeTab === "chats" && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in duration-300">
-            <section className="glass-panel p-8 overflow-y-auto max-h-[600px] custom-scrollbar">
+      {activeTab === "monitor" && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in duration-500">
+            <section className="glass-panel p-8 overflow-y-auto max-h-[650px] custom-scrollbar border-primary/10">
                 <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-3">
-                    <LayoutGrid className="w-5 h-5 text-primary" /> Group Chats
+                    <LayoutGrid className="w-5 h-5 text-primary" /> Multi-Group Terminals
                 </h3>
                 <div className="space-y-4">
                     {groups.map(g => (
                         <button 
                             key={g.id}
                             onClick={() => setMonitoringChat({ id: g.id, name: g.name, type: "group" })}
-                            className="w-full glass-card p-4 flex items-center justify-between hover:border-primary/40 hover:bg-white/5 transition-all text-left group"
+                            className="w-full glass-card p-5 flex items-center justify-between hover:border-primary/40 hover:bg-white/5 transition-all text-left group"
                         >
                             <div>
                                 <span className="text-white font-bold text-sm tracking-tight group-hover:text-primary transition-colors">{g.name}</span>
-                                <p className="text-[8px] text-white/20 mt-1 uppercase font-black tracking-widest">{g.memberIds.length} Members</p>
+                                <div className="flex items-center gap-3 mt-2">
+                                    <p className="text-[8px] text-white/20 uppercase font-black tracking-widest leading-none">{g.memberIds.length} Agents</p>
+                                    <p className="text-[8px] text-white/20 uppercase font-black tracking-widest leading-none py-1 px-2 bg-white/5 rounded border border-white/5">Group Chat Enabled</p>
+                                </div>
                             </div>
-                            <span className="text-[9px] text-white/20 font-black uppercase tracking-widest">Global Access</span>
+                            <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all">
+                                <MessageSquare className="w-4 h-4 text-primary" />
+                            </div>
                         </button>
                     ))}
                 </div>
             </section>
-            <section className="glass-panel p-8 overflow-y-auto max-h-[600px] custom-scrollbar">
+            <section className="glass-panel p-8 overflow-y-auto max-h-[650px] custom-scrollbar border-rose-500/10">
                 <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-3">
-                    <Shield className="w-5 h-5 text-rose-500" /> Private Monitors
+                    <Shield className="w-5 h-5 text-rose-500" /> Private Intercepts
                 </h3>
                 <div className="space-y-4">
+                    {allTrades.length === 0 && <p className="text-center py-12 text-white/10 font-bold italic uppercase tracking-widest">No active private channels</p>}
                     {allTrades.map(t => {
                         const u1 = users.find(u => u.uid === t.participants[0]);
                         const u2 = users.find(u => u.uid === t.participants[1]);
@@ -285,21 +327,34 @@ export default function SuperAdminPage() {
                             <button 
                                 key={t.id}
                                 onClick={() => setMonitoringChat({ id: t.id, name: chatName, type: "private" })}
-                                className="w-full glass-card p-4 flex items-center justify-between hover:border-rose-500/40 hover:bg-white/5 transition-all text-left group"
+                                className="w-full glass-card p-5 flex items-center justify-between hover:border-rose-500/40 hover:bg-white/5 transition-all text-left group"
                             >
                                 <div>
                                     <span className="text-white font-bold text-sm tracking-tight group-hover:text-rose-400 transition-colors">
                                         {chatName}
                                     </span>
-                                    <p className="text-[8px] text-white/20 mt-1 uppercase font-black tracking-widest italic">{u1?.studentId} / {u2?.studentId}</p>
+                                    <p className="text-[8px] text-white/20 mt-2 uppercase font-black tracking-widest italic leading-none">{u1?.studentId} / {u2?.studentId}</p>
                                 </div>
-                                <span className="text-[8px] bg-rose-500/10 text-rose-500 px-2 py-1 rounded font-black uppercase tracking-widest">Warp Access</span>
+                                <div className="w-10 h-10 rounded-lg bg-rose-500/5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all border border-rose-500/10">
+                                    <Zap className="w-4 h-4 text-rose-500" />
+                                </div>
                             </button>
                         );
                     })}
                 </div>
             </section>
         </div>
+      )}
+
+      {activeTab === "config" && (
+        <section className="glass-panel p-16 text-center animate-in zoom-in duration-500 border-dashed border-white/10">
+             <Settings className="w-16 h-16 text-white/5 mx-auto mb-6" />
+             <h3 className="text-3xl font-black text-white/10 uppercase tracking-widest italic mb-2">Hard-Coded Authority</h3>
+             <p className="text-[10px] text-white/5 font-bold uppercase tracking-[0.3em]">System Configuration is Locked via Master Identity Protocol</p>
+             <div className="mt-12 max-w-sm mx-auto p-4 border border-white/5 rounded-2xl bg-white/2 opacity-20 hover:opacity-100 transition-opacity">
+                 <p className="text-[8px] text-white italic">"There is no system configuration outside the Architect's reach. Every variable is an extension of Will."</p>
+             </div>
+        </section>
       )}
 
       {/* GOD MODE: Edit User Modal */}

@@ -19,6 +19,9 @@ export function ProtectedRoute({
     if (!loading) {
       if (!user || !userData) {
         router.push("/login");
+      } else if (userData.role === "superadmin") {
+        // God mode bypasses all status/role checks
+        return;
       } else if (userData.status === "pending" || userData.status === "rejected") {
         router.push("/login");
       } else if (!allowedRoles.includes(userData.role)) {
