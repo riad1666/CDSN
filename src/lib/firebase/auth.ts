@@ -241,16 +241,17 @@ export const updateUserEmail = async (newEmail: string) => {
     // SCENARIO 1: Unverified user correcting a wrong email (mistake at registration)
     try {
       console.log("Correcting unverified email address...");
+      // For unverified users, updateEmail is the only way to avoid 'fixing typos' with external verification
       await updateEmail(user, newEmail);
       await updateDoc(doc(db, "users", user.uid), { email: newEmail });
       await resendVerificationEmail();
     } catch (error: any) {
       console.error("EMAIL SWAP ERROR:", error);
       if (error.code === "auth/operation-not-allowed") {
-        throw new Error("Action blocked. Please enable 'Email Link (passwordless)' in Firebase Console > Authentication > Sign-in method.");
+        throw new Error("Action Blocked: Please enable 'Email link (passwordless sign-in)' OR disable 'Email enumeration protection' in your Firebase Console > Authentication.");
       }
       if (error.code === "auth/requires-recent-login") {
-        throw new Error("Please logout and login again to change your email.");
+        throw new Error("Please Logout and Login again to verify your identity before changing your email.");
       }
       throw error;
     }
@@ -264,12 +265,12 @@ export const updateUserEmail = async (newEmail: string) => {
       console.log("Sending verification for new email address...");
       await verifyBeforeUpdateEmail(user, newEmail, actionCodeSettings);
       
-      // We update Firestore so the UI shows the intended new email immediately
+      // We update Firestore so the UI remains in sync with the user's intent
       await updateDoc(doc(db, "users", user.uid), { email: newEmail });
     } catch (error: any) {
       console.error("SECURE EMAIL UPDATE ERROR:", error);
       if (error.code === "auth/operation-not-allowed") {
-        throw new Error("Modern email updates require 'Email Link' to be enabled in Firebase Console.");
+        throw new Error("Action Blocked: Modern email updates require 'Email link (passwordless sign-in)' to be enabled in Firebase Console.");
       }
       throw error;
     }

@@ -201,7 +201,14 @@ export default function SettingsPage() {
                                                 toast.success("Email updated! Verification mail sent.");
                                                 setIsEditingEmail(false);
                                             } catch (e: any) {
-                                                toast.error(e.message || "Failed to update email");
+                                                console.error("Update Error:", e);
+                                                if (e.message.includes("Logout and Login")) {
+                                                    toast.error(e.message, { duration: 6000 });
+                                                } else if (e.message.includes("Action Blocked")) {
+                                                    toast.error(e.message, { duration: 8000 });
+                                                } else {
+                                                    toast.error(e.message || "Failed to update email");
+                                                }
                                             } finally {
                                                 setIsUpdatingEmail(false);
                                             }
