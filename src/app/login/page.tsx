@@ -5,7 +5,8 @@ import { loginUser } from "@/lib/firebase/auth";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import toast from "react-hot-toast";
-import { Loader2, Eye, EyeOff } from "lucide-react";
+import { Loader2, Eye, EyeOff, ShieldAlert } from "lucide-react";
+import { ForgotPasswordModal } from "@/components/ForgotPasswordModal";
 
 export default function LoginPage() {
   const [loginId, setLoginId] = useState("");
@@ -13,6 +14,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [unverified, setUnverified] = useState(false);
+  const [isForgotOpen, setIsForgotOpen] = useState(false);
   const router = useRouter();
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -23,7 +25,7 @@ export default function LoginPage() {
     setUnverified(false);
     try {
       await loginUser(loginId, password);
-      router.push("/");
+      router.push("/dashboard"); // Redirect to dashboard explicitly
     } catch (error: any) {
       if (error.message.includes("Email not verified")) {
         setUnverified(true);
@@ -48,7 +50,7 @@ export default function LoginPage() {
   };
 
   const handleForgot = () => {
-    toast("Contact admin: mdriadmollik@icloud.com", { icon: "⚠️" });
+    setIsForgotOpen(true);
   };
 
   return (
@@ -97,14 +99,20 @@ export default function LoginPage() {
           </button>
 
           {unverified && (
-            <button 
-              type="button" 
-              onClick={handleResend} 
-              disabled={loading}
-              className="w-full py-2 text-primary text-xs font-semibold hover:underline animate-in fade-in slide-in-from-top-2 duration-300"
-            >
-              Didn't get the email? Resend Verification
-            </button>
+            <div className="space-y-2 mt-4 animate-in fade-in slide-in-from-top-2 duration-500">
+                <div className="flex items-center gap-2 p-3 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-400 text-[10px] font-medium leading-relaxed">
+                    <ShieldAlert className="w-4 h-4 shrink-0" />
+                    <span>Login with Email is blocked until verified. Use your <b>Student ID</b> to login now and fix your email in settings.</span>
+                </div>
+                <button 
+                  type="button" 
+                  onClick={handleResend} 
+                  disabled={loading}
+                  className="w-full py-2 text-primary text-xs font-black uppercase tracking-widest hover:underline"
+                >
+                  {loading ? "Sending..." : "Resend Verification Link"}
+                </button>
+            </div>
           )}
         </form>
         
@@ -122,6 +130,8 @@ export default function LoginPage() {
           Convergence Digital Society © 2026
         </div>
       </div>
+
+      <ForgotPasswordModal isOpen={isForgotOpen} onClose={() => setIsForgotOpen(false)} />
     </div>
   );
 }

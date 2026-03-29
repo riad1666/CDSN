@@ -7,7 +7,8 @@ import {
   reauthenticateWithCredential,
   updatePassword,
   updateEmail,
-  verifyBeforeUpdateEmail
+  verifyBeforeUpdateEmail,
+  sendPasswordResetEmail
 } from "firebase/auth";
 import { doc, setDoc, getDocs, collection, query, where, updateDoc } from "firebase/firestore";
 import { auth, db } from "./config";
@@ -155,11 +156,12 @@ export const loginUser = async (loginId: string, password: string) => {
 
   const credential = await signInWithEmailAndPassword(auth, email, password);
   const user = credential.user;
+  const isEmailLogin = loginId.includes("@");
 
   // 1. Email Verification Check
-  if (!user.emailVerified) {
+  if (isEmailLogin && !user.emailVerified) {
     await firebaseSignOut(auth);
-    throw new Error("Email not verified. Please check your inbox or resend the verification link.");
+    throw new Error("Email not verified. Please verify your email to login with email address, or use your Student ID to login without verification.");
   }
 
   // 2. Fetch User Data from Firestore
@@ -275,4 +277,12 @@ export const updateUserEmail = async (newEmail: string) => {
       throw error;
     }
   }
+};
+
+export const resetPasswordUser = async (email: string) => {
+  const actionCodeSettings = {
+    url: `${window.location.origin}/login`,
+    handleCodeInApp: true,
+  };
+  return sendPasswordResetEmail(auth, email, actionCodeSettings);
 };
