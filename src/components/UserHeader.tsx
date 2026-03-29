@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { ShoppingCart, ChefHat, LogOut, LayoutDashboard, Shield, Menu, X, Search, Bell, User as UserIcon, Loader2 } from "lucide-react";
+import { ShoppingCart, ChefHat, LogOut, LayoutDashboard, Shield, Menu, X, Search, Bell, User as UserIcon, Loader2, MessageSquare } from "lucide-react";
 import PWAInstallPrompt from "./PWAInstallPrompt";
 import { useAuth } from "@/context/AuthContext";
 import { logoutUser } from "@/lib/firebase/auth";
@@ -12,11 +12,12 @@ import { collection, query, orderBy, limit, onSnapshot, where } from "firebase/f
 import { searchUsersByStudentId, UserBasicInfo, AppNotification, subscribeToNotifications } from "@/lib/firebase/firestore";
 import { motion, AnimatePresence } from "framer-motion";
 import { GroupInviteModal } from "./GroupInviteModal";
+import { ChatDrawer } from "./ChatDrawer";
+import { subscribeToMessages, markChatAsRead, ChatMessage, subscribeToAllUnread } from "@/lib/firebase/firestore";
 
 export function UserHeader() {
   const { userData, setSidebarOpen, isSidebarOpen } = useAuth();
   const router = useRouter();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<UserBasicInfo[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -24,17 +25,14 @@ export function UserHeader() {
   const [inviteUser, setInviteUser] = useState<UserBasicInfo | null>(null);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [unreadMessages, setUnreadMessages] = useState(0);
 
   useEffect(() => {
     if (!userData) return;
     
     // Listen to notifications
     const unsubNotify = subscribeToNotifications(userData.uid, (data) => setNotifications(data));
-
-    // Request browser notification permission
-    if ("Notification" in window && Notification.permission === "default") {
-      Notification.requestPermission();
-    }
 
     // Listen to the most recent group notice if a group is selected
     let unsubNotice = () => {};
@@ -72,6 +70,16 @@ export function UserHeader() {
     };
   }, [userData?.uid, userData?.currentGroupId]);
 
+  // Unread messages logic
+  useEffect(() => {
+    if (!userData?.uid || !userData.currentGroupId) return;
+
+    const unsubChat = subscribeToAllUnread(userData.uid, [userData.currentGroupId], (counts) => {
+        setUnreadMessages(counts[userData.currentGroupId!] || 0);
+    });
+    return () => unsubChat();
+  }, [userData?.uid, userData?.currentGroupId]);
+
   // Live search with debounce
   useEffect(() => {
     if (searchQuery.trim().length < 2) {
@@ -87,11 +95,6 @@ export function UserHeader() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  const handleLogout = async () => {
-    await logoutUser();
-    router.push("/login");
-  };
-
   const unreadCount = notifications.filter(n => n.status === "unread").length;
 
   return (
@@ -99,7 +102,6 @@ export function UserHeader() {
       <div className="flex items-center gap-4 md:gap-8 flex-1">
          <img src="/logo.png" alt="CDS Logo" className="w-8 h-8 md:w-10 md:h-10 object-contain" />
          
-         {/* Global Search Bar */}
          <div className="relative max-w-md w-full">
             <div className="relative group">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 group-focus-within:text-primary transition-colors" />
@@ -181,18 +183,15 @@ export function UserHeader() {
       </div>
       
       <div className="flex items-center gap-4">
-        {/* Navigation - Dynamic based on group selection? */}
         <nav className="hidden lg:flex items-center gap-6 mr-6">
+            <Link href="/dashboard" className="text-white/50 hover:text-white text-xs font-medium transition-colors">Dashboard</Link>
             <Link href="/dashboard/shopping" className="text-white/50 hover:text-white text-xs font-medium transition-colors">Shopping</Link>
             <Link href="/dashboard/meal-plan" className="text-white/50 hover:text-white text-xs font-medium transition-colors">Meal Plan</Link>
-            <Link href="/cooking" className="text-white/50 hover:text-white text-xs font-medium transition-colors">Cooking</Link>
         </nav>
 
-        {/* Action Icons */}
         <div className="flex items-center gap-3">
             <PWAInstallPrompt />
             
-            {/* Notifications */}
             <div className="relative">
                 <button 
                     onClick={() => setShowNotifications(!showNotifications)}
@@ -201,43 +200,41 @@ export function UserHeader() {
                     <Bell className="w-4 h-4 md:w-5 md:h-5" />
                     {unreadCount > 0 && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full animate-pulse border-2 border-[#161724]"></span>}
                 </button>
-                
-                <AnimatePresence>
-                    {showNotifications && (
-                        <motion.div 
-                            initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                            className="absolute right-0 top-full mt-2 w-80 glass-panel p-4 shadow-2xl z-50 overflow-hidden"
-                        >
-                            <h3 className="text-sm font-bold text-white mb-4">Notifications</h3>
-                            <div className="space-y-3 max-h-60 overflow-y-auto custom-scrollbar">
-                                {notifications.length === 0 ? (
-                                    <div className="text-center py-8 text-white/40 text-xs">No notifications yet</div>
-                                ) : (
-                                    notifications.map(n => (
-                                        <div key={n.id} className="p-2 rounded-lg hover:bg-white/5 transition-colors border-l-2 border-primary/20">
-                                            <p className="text-xs text-white/80 leading-relaxed">{n.message}</p>
-                                            <span className="text-[10px] text-white/30 mt-1 block">Just now</span>
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
             </div>
+
+            {userData?.currentGroupId && (
+                <button 
+                    onClick={() => setIsChatOpen(true)}
+                    className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center hover:bg-primary hover:text-white transition-all group relative"
+                >
+                    <MessageSquare className="w-4 h-4 md:w-5 md:h-5 transition-transform group-hover:scale-110" />
+                    {unreadMessages > 0 && (
+                        <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center animate-bounce border-2 border-[#161724]">
+                            {unreadMessages}
+                        </span>
+                    )}
+                </button>
+            )}
 
             <button className="md:hidden text-white/70 hover:text-white transition-colors ml-2" onClick={() => setSidebarOpen(!isSidebarOpen)}>
                  {isSidebarOpen ? <X className="w-6 h-6"/> : <Menu className="w-6 h-6"/>}
             </button>
         </div>
       </div>
-         <GroupInviteModal 
-            isOpen={isInviteOpen} 
-            onClose={() => setIsInviteOpen(false)} 
-            targetUser={inviteUser} 
-         />
+
+      <ChatDrawer 
+        isOpen={isChatOpen} 
+        onClose={() => setIsChatOpen(false)} 
+        chatId={userData?.currentGroupId || ""} 
+        chatName="Group Discussion" 
+        type="group" 
+      />
+
+      <GroupInviteModal 
+        isOpen={isInviteOpen} 
+        onClose={() => setIsInviteOpen(false)} 
+        targetUser={inviteUser} 
+      />
     </header>
   );
 }

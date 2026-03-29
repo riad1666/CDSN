@@ -35,6 +35,7 @@ export const subscribeToNotices = (callback: (notices: Notice[]) => void, groupI
 export interface UserBasicInfo {
   uid: string;
   name: string;
+  email?: string;
   studentId: string;
   profileImage: string;
   room: string;
@@ -43,6 +44,7 @@ export interface UserBasicInfo {
   gender: "male" | "female";
   dob?: string;
   status: "pending" | "approved" | "rejected";
+  chatMarkers?: Record<string, Timestamp>;
 }
 
 export async function searchUsersByStudentId(studentId: string): Promise<UserBasicInfo[]> {
@@ -414,4 +416,153 @@ export function subscribeToMealPlans(groupId: string, callback: (meals: MealPlan
     data.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     callback(data);
   });
+}
+
+// --- CHAT MESSAGES ---
+export interface ChatMessage {
+  id: string;
+  chatId: string;
+  type: "group" | "private";
+  senderId: string;
+  text: string;
+  timestamp: any;
+}
+
+export async function sendMessage(chatId: string, type: "group" | "private", senderId: string, text: string): Promise<void> {
+  await addDoc(collection(db, "messages"), {
+    chatId,
+    type,
+    senderId,
+    text,
+    timestamp: serverTimestamp()
+  });
+
+  // Update last activity in parent
+  const ref = type === "group" ? doc(db, "groups", chatId) : doc(db, "personalTrades", chatId);
+  await updateDoc(ref, { lastMessageAt: serverTimestamp() });
+}
+
+export function subscribeToMessages(chatId: string, callback: (msgs: ChatMessage[]) => void) {
+  const q = query(
+    collection(db, "messages"),
+    where("chatId", "==", chatId),
+    orderBy("timestamp", "asc"),
+    limit(100)
+  );
+  return onSnapshot(q, (snap) => {
+    callback(snap.docs.map(d => ({ id: d.id, ...d.data() } as ChatMessage)));
+  });
+}
+
+export async function markChatAsRead(userId: string, chatId: string): Promise<void> {
+  await updateDoc(doc(db, "users", userId), {
+    [`chatMarkers.${chatId}`]: serverTimestamp()
+  });
+}
+
+export function subscribeToUnreadCounts(userId: string, chatIds: string[], callback: (counts: Record<string, number>) => void) {
+    if (!userId || !chatIds.length) return () => {};
+
+    const counts: Record<string, number> = {};
+    const unsubs: (() => void)[] = [];
+
+    chatIds.forEach(chatId => {
+        const q = query(
+            collection(db, "messages"),
+            where("chatId", "==", chatId),
+            orderBy("timestamp", "desc"),
+            limit(10) // Only check the latest 10 for efficiency
+        );
+
+        const unsub = onSnapshot(q, (snap) => {
+            // We need to compare with the user's latest chatMarkers
+            // Since we can't easily sync chatMarkers inside this snapshot without another listener,
+            // we'll listen to the user doc separately or just rely on the latest data we have.
+            // Better yet, let's just use the current user's document snapshot for markers.
+        });
+        unsubs.push(unsub);
+    });
+
+    // Actually, a more efficient way is to listen to the user doc once for markers
+    // and listen to messages of all chatIds.
+    // However, for Simplicity and Reliability, I'll provide a simpler version that comparing timestamps.
+
+    return () => unsubs.forEach(u => u());
+}
+
+// Higher level unread count listener that handles the marker correlation
+export function subscribeToAllUnread(userId: string, chatIds: string[], callback: (counts: Record<string, number>) => void) {
+    const counts: Record<string, number> = {};
+    const messageUnsubs: Record<string, () => void> = {};
+    const latestMessages: Record<string, any[]> = {};
+    let currentMarkers: Record<string, any> = {};
+
+    const updateCounts = () => {
+        chatIds.forEach(chatId => {
+            const lastRead = currentMarkers[chatId]?.toDate?.() || new Date(0);
+            const msgs = latestMessages[chatId] || [];
+            const unread = msgs.filter(m => {
+                return m.timestamp?.toDate() > lastRead && m.senderId !== userId;
+            }).length;
+            counts[chatId] = unread;
+        });
+        callback({ ...counts });
+    };
+
+    const unsubUser = onSnapshot(doc(db, "users", userId), (userSnap) => {
+        const userData = userSnap.data();
+        currentMarkers = userData?.chatMarkers || {};
+
+        // For each chat, we need a message listener if we don't have one
+        chatIds.forEach(chatId => {
+            if (!messageUnsubs[chatId]) {
+                const q = query(
+                    collection(db, "messages"),
+                    where("chatId", "==", chatId),
+                    orderBy("timestamp", "desc"),
+                    limit(20)
+                );
+                messageUnsubs[chatId] = onSnapshot(q, (msgSnap) => {
+                    latestMessages[chatId] = msgSnap.docs.map(d => d.data());
+                    updateCounts();
+                });
+            }
+        });
+        
+        // Always update counts when user markers change
+        updateCounts();
+    });
+
+    return () => {
+        unsubUser();
+        Object.values(messageUnsubs).forEach(u => u());
+    };
+}
+
+// --- GLOBAL ADMIN (GOD MODE) ---
+
+export async function getAllUsers(): Promise<UserBasicInfo[]> {
+  const snap = await getDocs(query(collection(db, "users"), orderBy("studentId", "asc")));
+  return snap.docs.map(d => ({ uid: d.id, ...d.data() } as UserBasicInfo));
+}
+
+export async function getAllGroups(): Promise<Group[]> {
+  const snap = await getDocs(query(collection(db, "groups"), where("isDeleted", "==", false)));
+  return snap.docs.map(d => ({ id: d.id, ...d.data() } as Group));
+}
+
+export async function updateUserData(uid: string, data: Partial<UserBasicInfo>): Promise<void> {
+    await updateDoc(doc(db, "users", uid), data);
+}
+
+export function subscribeToAllActivities(callback: (activities: any[]) => void) {
+    const q = query(collection(db, "groupActivity"), orderBy("createdAt", "desc"), limit(50));
+    return onSnapshot(q, (snap) => {
+        callback(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+}
+
+export async function getAllPersonalTrades(): Promise<PersonalTrade[]> {
+    const snap = await getDocs(query(collection(db, "personalTrades"), orderBy("lastActivity", "desc")));
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as PersonalTrade));
 }

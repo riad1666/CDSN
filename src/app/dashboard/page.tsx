@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { Bell, TrendingUp, TrendingDown, DollarSign, User as UserIcon, Plus, Lock, ChefHat, LayoutGrid, Users, Loader2, Camera, Trash2, X, PlusCircle } from "lucide-react";
-import { subscribeToNotices, subscribeToExpenses, subscribeToSettlements, getApprovedUsers, Notice, Expense, Settlement, UserBasicInfo, Group, subscribeToUserGroups, updateGroupCoverPhoto } from "@/lib/firebase/firestore";
+import { subscribeToNotices, subscribeToExpenses, subscribeToSettlements, getApprovedUsers, Notice, Expense, Settlement, UserBasicInfo, Group, subscribeToUserGroups, updateGroupCoverPhoto, subscribeToAllUnread } from "@/lib/firebase/firestore";
 import { format } from "date-fns";
 import Link from "next/link";
 import { doc, updateDoc, collection, query, where, orderBy, onSnapshot } from "firebase/firestore";
@@ -18,6 +18,8 @@ import { CreateNoticeModal } from "@/components/CreateNoticeModal";
 import { CreateGroupModal } from "@/components/CreateGroupModal";
 import { JoinGroupModal } from "@/components/JoinGroupModal";
 import { updateGroupProfileImage } from "@/lib/firebase/firestore";
+import { ChatDrawer } from "@/components/ChatDrawer";
+import { MessageSquare } from "lucide-react";
 
 export default function DashboardPage() {
   const { userData } = useAuth();
@@ -38,6 +40,8 @@ export default function DashboardPage() {
   const [isNoticeOpen, setNoticeOpen] = useState(false);
   const [isCreateOpen, setCreateOpen] = useState(false);
   const [isJoinOpen, setJoinOpen] = useState(false);
+  const [isChatOpen, setChatOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const coverInputRef = useRef<HTMLInputElement>(null);
   const profileInputRef = useRef<HTMLInputElement>(null);
 
@@ -91,6 +95,11 @@ export default function DashboardPage() {
         if (current) setGroup(current);
     });
 
+    // Subscribe to unread count
+    const unsubUnread = subscribeToAllUnread(userData.uid, [userData.currentGroupId], (counts) => {
+        setUnreadCount(counts[userData.currentGroupId!] || 0);
+    });
+
     return () => {
       unsubNotices();
       unsubExpenses();
@@ -98,6 +107,7 @@ export default function DashboardPage() {
       unsubCooking();
       unsubPersonal();
       unsubGroup();
+      unsubUnread();
     };
   }, [userData?.uid, userData?.currentGroupId]);
 
@@ -300,6 +310,20 @@ export default function DashboardPage() {
                         <span className="hidden md:inline">Edit Cover</span>
                     </button>
                 )}
+                
+                <button 
+                    onClick={() => setChatOpen(true)}
+                    className="glass-button py-2 px-3 text-[10px] flex items-center gap-2 bg-primary/20 border-primary/30 text-white relative hover:scale-105 transition-all"
+                >
+                    <MessageSquare className="w-3.5 h-3.5 text-primary" />
+                    <span className="hidden md:inline">Group Chat</span>
+                    {unreadCount > 0 && (
+                        <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-rose-500 text-[8px] font-black flex items-center justify-center border-2 border-[#0f101a] animate-bounce">
+                            {unreadCount}
+                        </span>
+                    )}
+                </button>
+                
                 <input type="file" ref={coverInputRef} onChange={handleCoverChange} className="hidden" accept="image/*" />
             </div>
         </div>
@@ -587,6 +611,14 @@ export default function DashboardPage() {
         isOpen={isNoticeOpen} 
         onClose={() => setNoticeOpen(false)} 
         groupId={userData.currentGroupId!} 
+      />
+
+      <ChatDrawer 
+        isOpen={isChatOpen}
+        onClose={() => setChatOpen(false)}
+        chatId={userData.currentGroupId!}
+        chatName={group?.name || "Group Chat"}
+        type="group"
       />
     </div>
   );
