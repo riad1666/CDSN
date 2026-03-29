@@ -1,27 +1,21 @@
 "use client";
 
-import { useAuth } from "@/context/AuthContext";
-import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export default function AdminIndex() {
-  const { userData, loading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (loading) return;
-
-    if (userData?.role === "superadmin") {
-      router.replace("/admin/super");
-    } else {
-      router.replace("/admin/users");
-    }
-  }, [userData, loading, router]);
+    router.replace("/admin/overview");
+  }, [router]);
 
   return (
-    <div className="h-screen flex items-center justify-center bg-[#07080d]">
-      <Loader2 className="w-10 h-10 text-rose-500 animate-spin" />
+    <div className="flex items-center justify-center h-[60vh]">
+      <div className="flex flex-col items-center gap-4">
+        <div className="w-10 h-10 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-white/40 font-bold uppercase tracking-widest text-xs">Entering Control Center...</p>
+      </div>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { collection, query, orderBy, onSnapshot, getDocs, addDoc, updateDoc, doc, where, limit, arrayRemove, arrayUnion, serverTimestamp, Timestamp } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot, getDocs, addDoc, updateDoc, setDoc, doc, where, limit, arrayRemove, arrayUnion, serverTimestamp, Timestamp } from "firebase/firestore";
 import { db } from "./config";
 
 // --- NOTICES ---
@@ -116,6 +116,7 @@ export interface Expense {
   splitBetween: string[]; // uids
   date: string;
   receipts: string[];
+  category: "Food" | "Utilities" | "Supplies" | "Kitchen" | "Grocery" | "Other";
   isDeleted: boolean;
 }
 
@@ -176,6 +177,11 @@ export interface Group {
   memberIds: string[];
   memberRoles: Record<string, "owner" | "admin" | "member">;
   coverImage?: string; // Base64 or URL
+  lastMessage?: {
+    text: string;
+    senderId: string;
+    timestamp: any;
+  };
 }
 
 export interface GroupMember {
@@ -204,6 +210,11 @@ export interface PersonalTrade {
   participants: string[]; // [uid1, uid2]
   totalBalance: number; // Balance from uid1 perspective (uid1_owes - uid2_owes)
   lastActivity: string;
+  lastMessage?: {
+    text: string;
+    senderId: string;
+    timestamp: any;
+  };
 }
 
 export const subscribeToPersonalTrades = (uid: string, callback: (trades: PersonalTrade[]) => void) => {
@@ -437,9 +448,16 @@ export async function sendMessage(chatId: string, type: "group" | "private", sen
     timestamp: serverTimestamp()
   });
 
-  // Update last activity in parent
+  // Update last activity and message in parent
   const ref = type === "group" ? doc(db, "groups", chatId) : doc(db, "personalTrades", chatId);
-  await updateDoc(ref, { lastMessageAt: serverTimestamp() });
+  await updateDoc(ref, { 
+    lastActivity: new Date().toISOString(),
+    lastMessage: {
+        text,
+        senderId,
+        timestamp: serverTimestamp()
+    }
+  });
 }
 
 export function subscribeToMessages(chatId: string, callback: (msgs: ChatMessage[]) => void) {
@@ -565,4 +583,88 @@ export function subscribeToAllActivities(callback: (activities: any[]) => void) 
 export async function getAllPersonalTrades(): Promise<PersonalTrade[]> {
     const snap = await getDocs(query(collection(db, "personalTrades"), orderBy("lastActivity", "desc")));
     return snap.docs.map(d => ({ id: d.id, ...d.data() } as PersonalTrade));
+}
+
+// --- ANALYTICS & STATS ---
+
+export function subscribeToSystemStats(callback: (stats: any) => void) {
+    let users: any[] = [];
+    let groups: any[] = [];
+    let expenses: any[] = [];
+
+    const emit = () => {
+        callback({
+            totalUsers: users.length,
+            activeUsers24h: users.filter(u => u.status === "approved").length,
+            totalGroups: groups.filter(g => !g.isDeleted).length,
+            totalExpenses: expenses.reduce((acc, curr) => acc + (curr.amount || 0), 0),
+            pendingRequests: users.filter(u => u.status === "pending").length,
+            activeChats: groups.length + users.filter(u => u.status === "approved").length // Placeholder logic
+        });
+    };
+
+    const unsubUsers = onSnapshot(collection(db, "users"), (snap) => {
+        users = snap.docs.map(d => d.data());
+        emit();
+    });
+
+    const unsubGroups = onSnapshot(collection(db, "groups"), (snap) => {
+        groups = snap.docs.map(d => d.data());
+        emit();
+    });
+
+    const unsubExpenses = onSnapshot(collection(db, "expenses"), (snap) => {
+        expenses = snap.docs.map(d => d.data());
+        emit();
+    });
+
+    return () => {
+        unsubUsers();
+        unsubGroups();
+        unsubExpenses();
+    };
+}
+
+export function subscribeToGlobalAnalytics(callback: (data: any) => void) {
+    const q = query(collection(db, "expenses"), where("isDeleted", "==", false));
+    return onSnapshot(q, (snap) => {
+        const expenses = snap.docs.map(d => d.data());
+        
+        // Group by category
+        const categories: Record<string, number> = {};
+        expenses.forEach(e => {
+            const cat = e.category || "Other";
+            categories[cat] = (categories[cat] || 0) + (e.amount || 0);
+        });
+
+        // Group by month (last 6 months)
+        const monthly: Record<string, number> = {};
+        expenses.forEach(e => {
+            const date = new Date(e.date);
+            const month = date.toLocaleString('default', { month: 'short' });
+            monthly[month] = (monthly[month] || 0) + (e.amount || 0);
+        });
+
+        callback({
+            categories: Object.entries(categories).map(([name, value]) => ({ name, value })),
+            monthly: Object.entries(monthly).map(([name, value]) => ({ name, value })),
+            topGroups: [] // To be implemented with group join
+        });
+    });
+}
+
+export async function broadcastNotification(title: string, message: string): Promise<void> {
+    const users = await getAllUsers();
+    const batch = users.map(u => writeNotification(u.uid, "NOTICE_ADDED", `${title}: ${message}`, { isBroadcast: true }));
+    await Promise.all(batch);
+}
+
+export async function updateAdminSettings(settings: any): Promise<void> {
+    await setDoc(doc(db, "adminSettings", "global"), settings, { merge: true });
+}
+
+export function subscribeToAdminSettings(callback: (settings: any) => void) {
+    return onSnapshot(doc(db, "adminSettings", "global"), (snap) => {
+        callback(snap.data() || {});
+    });
 }
