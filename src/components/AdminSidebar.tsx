@@ -2,12 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Users, DollarSign, CheckSquare, ChefHat, Bell, BarChart2 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { Users, DollarSign, CheckSquare, ChefHat, Bell, BarChart2, Shield } from "lucide-react";
 
 export function AdminSidebar() {
   const pathname = usePathname();
+  const { userData } = useAuth();
 
   const links = [
+    ...(userData?.role === 'superadmin' ? [{ href: "/admin/super", label: "Neural Control", icon: Shield }] : []),
     { href: "/admin/users", label: "Users", icon: Users },
     { href: "/admin/expenses", label: "Expenses", icon: DollarSign },
     { href: "/admin/settlements", label: "Settlements", icon: CheckSquare },

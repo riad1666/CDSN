@@ -24,8 +24,20 @@ export default function LoginPage() {
     setLoading(true);
     setUnverified(false);
     try {
-      await loginUser(loginId, password);
-      router.push("/dashboard"); // Redirect to dashboard explicitly
+      const cred = await loginUser(loginId, password);
+      // Fetch user role for redirection
+      const { doc, getDoc } = await import("firebase/firestore");
+      const { db } = await import("@/lib/firebase/config");
+      const userDoc = await getDoc(doc(db, "users", cred.user.uid));
+      const role = userDoc.data()?.role || "user";
+
+      if (role === "superadmin") {
+        router.push("/admin/super");
+      } else if (role === "admin") {
+        router.push("/admin");
+      } else {
+        router.push("/dashboard");
+      }
     } catch (error: any) {
       if (error.message.includes("Email not verified")) {
         setUnverified(true);

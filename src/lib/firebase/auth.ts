@@ -110,7 +110,7 @@ export const loginUser = async (loginId: string, password: string) => {
           whatsapp: "System",
           room: "Admin",
           profileImage: "",
-          role: "admin",
+          role: "superadmin",
           status: "approved",
           createdAt: new Date().toISOString()
         });
@@ -125,7 +125,7 @@ export const loginUser = async (loginId: string, password: string) => {
             whatsapp: "System",
             room: "Admin",
             profileImage: "",
-            role: "admin",
+            role: "superadmin",
             status: "approved",
             createdAt: new Date().toISOString()
           });

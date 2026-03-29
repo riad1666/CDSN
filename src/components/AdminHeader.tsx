@@ -15,19 +15,23 @@ export function AdminHeader() {
       <div className="lg:hidden text-white font-bold text-xl">Admin Panel</div>
       
       <div className="flex items-center gap-6">
-         {userData?.role !== "superadmin" && (
-            <Link href="/dashboard" className="text-white/50 hover:text-white flex items-center gap-2 text-sm font-medium transition-colors hidden sm:flex">
-                <Home className="w-4 h-4" /> Go to User View
-            </Link>
-         )}
-         <div className={`flex items-center gap-3 pl-6 ${userData?.role !== "superadmin" ? "border-l border-white/10" : ""}`}>
-            <div className="w-10 h-10 rounded-full bg-linear-to-br from-purple-500 to-pink-500 flex items-center justify-center font-bold text-white shadow-lg border border-white/20">
-              AD
+          <Link href="/dashboard" className="text-white/50 hover:text-white flex items-center gap-2 text-sm font-black uppercase tracking-widest transition-all group px-4 py-2 rounded-xl hover:bg-white/5">
+              <Home className="w-4 h-4 group-hover:scale-110 transition-transform" /> 
+              <span className="hidden sm:inline">Switch to User View</span>
+          </Link>
+          
+          <div className="flex items-center gap-3 pl-6 border-l border-white/10">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white shadow-lg border ${userData?.role === 'superadmin' ? 'bg-rose-500/10 border-rose-500/50 text-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.3)]' : 'bg-linear-to-br from-purple-500 to-pink-500 border-white/20'}`}>
+              {userData?.name?.charAt(0) || "AD"}
             </div>
-            <button onClick={async () => { await logoutUser(); router.push('/login'); }} className="text-white/50 hover:text-red-400 transition-colors ml-2">
+            <button 
+              onClick={async () => { await logoutUser(); router.push('/login'); }} 
+              className="p-2 rounded-lg text-white/30 hover:text-red-400 hover:bg-red-400/10 transition-all"
+              title="Terminate Session"
+            >
                <LogOut className="w-5 h-5" />
             </button>
-         </div>
+          </div>
       </div>
     </header>
   );

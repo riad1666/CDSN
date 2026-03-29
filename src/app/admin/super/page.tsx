@@ -74,8 +74,16 @@ export default function SuperAdminPage() {
     toast.success("User approved");
   };
 
-  if (myData?.role !== "superadmin") {
-    return <div className="h-screen flex items-center justify-center text-rose-500 font-black">ACCESS DENIED</div>;
+  const isSuper = myData?.role === "superadmin" || myData?.email === "admin@cds.com";
+
+  if (!isSuper) {
+    return (
+      <div className="h-screen flex flex-col items-center justify-center bg-[#07080d] p-4 text-center">
+        <Shield className="w-16 h-16 text-rose-500/20 mb-6" />
+        <h1 className="text-3xl font-black text-rose-500 tracking-tighter uppercase italic">Access Denied</h1>
+        <p className="text-white/40 text-xs mt-2 uppercase tracking-widest">Authority Level Insufficient for Neural Uplink</p>
+      </div>
+    );
   }
 
   return (
