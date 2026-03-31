@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { Plus, X, Upload, Loader2, Image as ImageIcon } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Plus, X, Upload, Loader2, Image as ImageIcon, Users, Check } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase/config";
-import { collection, addDoc, getDocs, query, where, updateDoc, doc } from "firebase/firestore";
+import { collection, addDoc, updateDoc, doc } from "firebase/firestore";
 import { uploadReceipts } from "@/lib/firebase/storage";
-import { getApprovedUsers, getGroupMembers, writeNotification, writeGroupActivity } from "@/lib/firebase/firestore";
+import { getGroupMembers, writeNotification, writeGroupActivity, UserBasicInfo } from "@/lib/firebase/firestore";
 import toast from "react-hot-toast";
+import { motion, AnimatePresence } from "framer-motion";
 
 export function AddExpenseModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
   const { userData } = useAuth();
@@ -16,6 +17,23 @@ export function AddExpenseModal({ isOpen, onClose }: { isOpen: boolean, onClose:
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [receipts, setReceipts] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
+  
+  const [members, setMembers] = useState<UserBasicInfo[]>([]);
+  const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
+  const [membersLoading, setMembersLoading] = useState(true);
+
+  useEffect(() => {
+    if (isOpen && userData?.currentGroupId) {
+      setMembersLoading(true);
+      getGroupMembers(userData.currentGroupId)
+        .then(list => {
+           setMembers(list);
+           setSelectedMembers(list.map(u => u.uid));
+        })
+        .catch(err => console.error("Failed to fetch group members:", err))
+        .finally(() => setMembersLoading(false));
+    }
+  }, [isOpen, userData?.currentGroupId]);
 
   if (!isOpen) return null;
 
@@ -25,28 +43,28 @@ export function AddExpenseModal({ isOpen, onClose }: { isOpen: boolean, onClose:
     }
   };
 
+  const toggleMember = (uid: string) => {
+     setSelectedMembers(prev => 
+        prev.includes(uid) ? prev.filter(id => id !== uid) : [...prev, uid]
+     );
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title || !amount) return toast.error("Title and amount are required");
+    if (selectedMembers.length === 0) return toast.error("Select at least one member to split with");
 
     setLoading(true);
     try {
       if (!userData?.currentGroupId) {
         throw new Error("No group selected. Please select a group first.");
       }
-
-      const allMembers = await getGroupMembers(userData.currentGroupId);
-      const splitBetween = allMembers.map(u => u.uid);
-      
-      if (splitBetween.length === 0) {
-        splitBetween.push(userData!.uid);
-      }
       
       const expenseRef = await addDoc(collection(db, "expenses"), {
         title,
         amount: parseFloat(amount),
         paidBy: userData!.uid,
-        splitBetween,
+        splitBetween: selectedMembers,
         date,
         receipts: [],
         groupId: userData.currentGroupId,
@@ -54,8 +72,9 @@ export function AddExpenseModal({ isOpen, onClose }: { isOpen: boolean, onClose:
         createdAt: new Date().toISOString()
       });
 
+      let receiptUrls: string[] = [];
       if (receipts.length > 0) {
-        const receiptUrls = await uploadReceipts(receipts, expenseRef.id);
+        receiptUrls = await uploadReceipts(receipts, expenseRef.id);
         await updateDoc(doc(db, "expenses", expenseRef.id), { receipts: receiptUrls });
       }
 
@@ -68,7 +87,7 @@ export function AddExpenseModal({ isOpen, onClose }: { isOpen: boolean, onClose:
       );
 
       // Notify others
-      const otherMembers = splitBetween.filter(id => id !== userData.uid);
+      const otherMembers = selectedMembers.filter(id => id !== userData.uid);
       await Promise.all(otherMembers.map(memberId => 
         writeNotification(
           memberId, 
@@ -78,9 +97,8 @@ export function AddExpenseModal({ isOpen, onClose }: { isOpen: boolean, onClose:
         )
       ));
 
-      toast.success("Expense added explicitly! Split evenly.");
+      toast.success("Expense added successfully!");
       onClose();
-      // reset forms
       setTitle(""); setAmount(""); setReceipts([]);
     } catch (err: any) {
       toast.error(err.message || "Something went wrong.");
@@ -90,17 +108,17 @@ export function AddExpenseModal({ isOpen, onClose }: { isOpen: boolean, onClose:
   };
 
   return (
-    <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="glass-panel w-full max-w-lg p-6 relative">
-        <button onClick={onClose} className="absolute top-4 right-4 text-white/50 hover:text-white transition-colors">
-          <X className="w-6 h-6" />
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-300">
+      <div className="glass-panel w-full max-w-lg p-8 relative border-white/10 shadow-2xl">
+        <button onClick={onClose} className="absolute top-6 right-6 text-white/30 hover:text-white transition-colors bg-white/5 p-2 rounded-xl">
+          <X className="w-5 h-5" />
         </button>
         
-        <h2 className="text-2xl font-bold text-white mb-6">Add Expense</h2>
+        <h2 className="text-3xl font-black text-white italic uppercase tracking-tighter mb-8">Add Expense</h2>
         
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-white/60 uppercase">Title</label>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-black text-white/40 uppercase tracking-widest ml-1">Title</label>
             <input 
               type="text" 
               placeholder="e.g., Weekly Groceries" 
@@ -111,18 +129,18 @@ export function AddExpenseModal({ isOpen, onClose }: { isOpen: boolean, onClose:
           </div>
           
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-white/60 uppercase">Amount (₩)</label>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-white/40 uppercase tracking-widest ml-1">Amount (₩)</label>
               <input 
                 type="number" 
                 placeholder="0" 
-                className="w-full glass-input"
+                className="w-full glass-input font-mono font-bold text-primary"
                 value={amount}
                 onChange={e => setAmount(e.target.value)}
               />
             </div>
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-white/60 uppercase">Date</label>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-white/40 uppercase tracking-widest ml-1">Date</label>
               <input 
                 type="date" 
                 className="w-full glass-input"
@@ -132,9 +150,56 @@ export function AddExpenseModal({ isOpen, onClose }: { isOpen: boolean, onClose:
             </div>
           </div>
           
-          <div className="space-y-1">
-             <label className="text-xs font-semibold text-white/60 uppercase">Receipts (Optional)</label>
-             <div className="border-2 border-dashed border-white/20 rounded-xl p-6 flex flex-col items-center justify-center relative hover:bg-white/5 transition-colors cursor-pointer group">
+          <div className="space-y-1.5">
+             <div className="flex items-center justify-between mb-2">
+                <label className="text-[10px] font-black text-white/40 uppercase tracking-widest ml-1">Split Between</label>
+                <button 
+                  type="button" 
+                  onClick={() => setSelectedMembers(members.map(m => m.uid))}
+                  className="text-[9px] font-black text-primary uppercase tracking-widest hover:underline"
+                >
+                   Select All
+                </button>
+             </div>
+             
+             {membersLoading ? (
+                 <div className="flex gap-2">
+                    {[1, 2, 3].map(i => <div key={i} className="w-10 h-10 rounded-full bg-white/5 animate-pulse" />)}
+                 </div>
+             ) : (
+                 <div className="flex flex-wrap gap-3 p-4 bg-white/2 rounded-2xl border border-white/5">
+                    {members.map(member => {
+                       const isSelected = selectedMembers.includes(member.uid);
+                       return (
+                          <div 
+                             key={member.uid}
+                             onClick={() => toggleMember(member.uid)}
+                             className={`relative group cursor-pointer transition-all duration-300 ${isSelected ? 'scale-100 opacity-100' : 'scale-90 opacity-40 hover:opacity-100'}`}
+                             title={member.name}
+                          >
+                             <div className={`w-12 h-12 rounded-2xl border-2 overflow-hidden flex items-center justify-center ${isSelected ? 'border-primary shadow-[0_0_15px_rgba(var(--color-primary),0.3)]' : 'border-white/10'}`}>
+                                {member.profileImage ? (
+                                   <img src={member.profileImage} alt={member.name} className="w-full h-full object-cover" />
+                                ) : (
+                                   <span className={`text-lg font-black ${isSelected ? 'text-primary' : 'text-white/40'}`}>{member.name.charAt(0)}</span>
+                                )}
+                             </div>
+                             {isSelected && (
+                                <div className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-primary text-white flex items-center justify-center border-2 border-[#0f101a] shadow-lg">
+                                   <Check className="w-3 h-3" />
+                                </div>
+                             )}
+                             <p className="text-[8px] font-black text-white/60 uppercase tracking-widest text-center mt-1 truncate w-12">{member.name.split(" ")[0]}</p>
+                          </div>
+                       )
+                    })}
+                 </div>
+             )}
+          </div>
+          
+          <div className="space-y-1.5">
+             <label className="text-[10px] font-black text-white/40 uppercase tracking-widest ml-1">Receipts (Optional)</label>
+             <div className="border border-dashed border-white/20 bg-white/2 rounded-2xl p-6 flex flex-col items-center justify-center relative hover:bg-white/5 transition-colors cursor-pointer group">
                <input 
                  type="file" 
                  multiple 
@@ -142,19 +207,15 @@ export function AddExpenseModal({ isOpen, onClose }: { isOpen: boolean, onClose:
                  onChange={handleFileChange} 
                  className="absolute inset-0 opacity-0 cursor-pointer" 
                />
-               <ImageIcon className="w-8 h-8 text-white/30 group-hover:text-primary transition-colors mb-2" />
-               <p className="text-sm text-white/60 text-center">
-                 {receipts.length > 0 ? `${receipts.length} file(s) selected` : "Click or drag to upload receipts"}
+               <ImageIcon className="w-8 h-8 text-white/20 group-hover:text-primary transition-colors mb-2" />
+               <p className="text-[10px] text-white/40 text-center font-bold tracking-widest uppercase">
+                 {receipts.length > 0 ? <span className="text-primary">{receipts.length} Neural files ready</span> : "Securely attach receipt images"}
                </p>
              </div>
           </div>
           
-          <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 text-sm text-blue-200">
-            This expense will be automatically split strictly among all approved residents.
-          </div>
-
-          <button type="submit" disabled={loading} className="w-full glass-button mt-4">
-            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Submit Expense"}
+          <button type="submit" disabled={loading} className="w-full glass-button py-4 text-xs tracking-[0.2em] shadow-[0_10px_30px_rgba(var(--color-primary),0.2)]">
+            {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : "Initiate Transaction Split"}
           </button>
         </form>
       </div>

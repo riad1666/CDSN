@@ -469,6 +469,9 @@ export function subscribeToMessages(chatId: string, callback: (msgs: ChatMessage
   );
   return onSnapshot(q, (snap) => {
     callback(snap.docs.map(d => ({ id: d.id, ...d.data() } as ChatMessage)));
+  }, (error) => {
+    console.error("Firestore Error in subscribeToMessages:", error);
+    // If it's a missing index error, Firebase logs the link directly to the console.
   });
 }
 
@@ -543,6 +546,8 @@ export function subscribeToAllUnread(userId: string, chatIds: string[], callback
                 messageUnsubs[chatId] = onSnapshot(q, (msgSnap) => {
                     latestMessages[chatId] = msgSnap.docs.map(d => d.data());
                     updateCounts();
+                }, (error) => {
+                    console.error(`Firestore Error in subscribeToAllUnread for chat ${chatId}:`, error);
                 });
             }
         });

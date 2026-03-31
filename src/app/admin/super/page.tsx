@@ -51,6 +51,24 @@ export default function SuperAdminPage() {
     e.preventDefault();
     if (!editingUser) return;
     try {
+      const originalUser = users.find(u => u.uid === editingUser.uid);
+      const emailChanged = originalUser && originalUser.email !== editingUser.email;
+
+      if (emailChanged) {
+        const { getFunctions, httpsCallable } = await import('firebase/functions');
+        const functions = getFunctions();
+        const changeUserEmail = httpsCallable<{targetUid: string, newEmail: string}, any>(functions, 'changeUserEmail');
+        
+        await toast.promise(
+            changeUserEmail({ targetUid: editingUser.uid, newEmail: editingUser.email || "" }),
+            {
+                loading: "Updating Auth email via neural uplink...",
+                success: "Auth record synchronized",
+                error: (err) => `Auth override failed: ${err.message}`
+            }
+        );
+      }
+
       await updateUserData(editingUser.uid, {
         name: editingUser.name,
         email: editingUser.email,
@@ -63,8 +81,8 @@ export default function SuperAdminPage() {
       setUsers(prev => prev.map(u => u.uid === editingUser.uid ? editingUser : u));
       setEditingUser(null);
       toast.success("User details updated - System Override Complete");
-    } catch (err) {
-      toast.error("Failed to update user");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update user");
     }
   };
 

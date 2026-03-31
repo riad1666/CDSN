@@ -1,19 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
-import { ShoppingCart, ChefHat, LogOut, LayoutDashboard, Shield, Menu, X, Search, Bell, User as UserIcon, Loader2, MessageSquare } from "lucide-react";
+import { Menu, X, Search, Loader2 } from "lucide-react";
 import PWAInstallPrompt from "./PWAInstallPrompt";
 import { useAuth } from "@/context/AuthContext";
-import { logoutUser } from "@/lib/firebase/auth";
 import { useRouter } from "next/navigation";
-import { db } from "@/lib/firebase/config";
-import { collection, query, orderBy, limit, onSnapshot, where } from "firebase/firestore";
-import { searchUsersByStudentId, UserBasicInfo, AppNotification, subscribeToNotifications } from "@/lib/firebase/firestore";
+import { searchUsersByStudentId, UserBasicInfo } from "@/lib/firebase/firestore";
 import { motion, AnimatePresence } from "framer-motion";
 import { GroupInviteModal } from "./GroupInviteModal";
-import { ChatDrawer } from "./ChatDrawer";
-import { subscribeToMessages, markChatAsRead, ChatMessage, subscribeToAllUnread } from "@/lib/firebase/firestore";
 
 export function UserHeader() {
   const { userData, setSidebarOpen, isSidebarOpen } = useAuth();
@@ -23,62 +17,6 @@ export function UserHeader() {
   const [isSearching, setIsSearching] = useState(false);
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [inviteUser, setInviteUser] = useState<UserBasicInfo | null>(null);
-  const [notifications, setNotifications] = useState<AppNotification[]>([]);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [isChatOpen, setIsChatOpen] = useState(false);
-  const [unreadMessages, setUnreadMessages] = useState(0);
-
-  useEffect(() => {
-    if (!userData) return;
-    
-    // Listen to notifications
-    const unsubNotify = subscribeToNotifications(userData.uid, (data) => setNotifications(data));
-
-    // Listen to the most recent group notice if a group is selected
-    let unsubNotice = () => {};
-    if (userData.currentGroupId) {
-        const q = query(
-            collection(db, "notices"), 
-            where("groupId", "==", userData.currentGroupId)
-        );
-        let isFirstLoad = true;
-        
-        unsubNotice = onSnapshot(q, (snapshot) => {
-          if (isFirstLoad) {
-            isFirstLoad = false;
-            return;
-          }
-          
-          snapshot.docChanges().forEach((change) => {
-            if (change.type === "added") {
-              const noticeData = change.doc.data();
-              if (noticeData.isDeleted) return;
-              if ("Notification" in window && Notification.permission === "granted") {
-                new Notification(`CDS Notice: ${noticeData.title}`, {
-                  body: noticeData.message?.substring(0, 100),
-                  icon: '/logo.png'
-                });
-              }
-            }
-          });
-        });
-    }
-
-    return () => {
-        unsubNotify();
-        unsubNotice();
-    };
-  }, [userData?.uid, userData?.currentGroupId]);
-
-  // Unread messages logic
-  useEffect(() => {
-    if (!userData?.uid || !userData.currentGroupId) return;
-
-    const unsubChat = subscribeToAllUnread(userData.uid, [userData.currentGroupId], (counts) => {
-        setUnreadMessages(counts[userData.currentGroupId!] || 0);
-    });
-    return () => unsubChat();
-  }, [userData?.uid, userData?.currentGroupId]);
 
   // Live search with debounce
   useEffect(() => {
@@ -95,19 +33,19 @@ export function UserHeader() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  const unreadCount = notifications.filter(n => n.status === "unread").length;
-
   return (
-    <header className="glass-panel rounded-none border-x-0 border-t-0 border-b border-white/5 px-4 md:px-6 py-3 md:py-4 flex items-center justify-between sticky top-0 z-40 bg-[#161724]/80 backdrop-blur-md">
-      <div className="flex items-center gap-4 md:gap-8 flex-1">
-         <img src="/logo.png" alt="CDS Logo" className="w-8 h-8 md:w-10 md:h-10 object-contain" />
+    <header className="glass-panel rounded-none border-x-0 border-t-0 border-b border-white/5 px-4 md:px-6 py-3 md:py-4 flex items-center justify-between sticky top-0 z-40 bg-background/80 backdrop-blur-md">
+      <div className="flex items-center gap-4 flex-1">
+         <button className="lg:hidden text-white/70 hover:text-white transition-colors" onClick={() => setSidebarOpen(!isSidebarOpen)}>
+             <Menu className="w-6 h-6"/>
+         </button>
          
-         <div className="relative max-w-md w-full">
+         <div className="relative max-w-md w-full ml-auto lg:ml-0">
             <div className="relative group">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 group-focus-within:text-primary transition-colors" />
                 <input 
                     type="text" 
-                    placeholder="Search..."
+                    placeholder="Search Users by ID..."
                     className="w-full bg-white/5 border border-white/10 rounded-xl py-2 md:py-2.5 pl-9 md:pl-10 pr-10 text-xs md:text-sm text-white placeholder:text-white/30 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
@@ -144,7 +82,7 @@ export function UserHeader() {
                                     {user.profileImage ? (
                                         <img src={user.profileImage} className="w-8 h-8 rounded-full border border-white/10" />
                                     ) : (
-                                        <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white/40"><UserIcon className="w-4 h-4" /></div>
+                                        <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white/40 font-bold uppercase">{user.name.charAt(0)}</div>
                                     )}
                                     <div>
                                         <div className="text-sm font-medium text-white">{user.name}</div>
@@ -182,53 +120,9 @@ export function UserHeader() {
          </div>
       </div>
       
-      <div className="flex items-center gap-4">
-        <nav className="hidden lg:flex items-center gap-6 mr-6">
-            <Link href="/dashboard" className="text-white/50 hover:text-white text-xs font-medium transition-colors">Dashboard</Link>
-            <Link href="/dashboard/shopping" className="text-white/50 hover:text-white text-xs font-medium transition-colors">Shopping</Link>
-            <Link href="/dashboard/meal-plan" className="text-white/50 hover:text-white text-xs font-medium transition-colors">Meal Plan</Link>
-        </nav>
-
-        <div className="flex items-center gap-3">
-            <PWAInstallPrompt />
-            
-            <div className="relative">
-                <button 
-                    onClick={() => setShowNotifications(!showNotifications)}
-                    className={`w-9 h-9 md:w-10 md:h-10 rounded-xl flex items-center justify-center transition-all ${showNotifications ? 'bg-primary/20 text-primary' : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'}`}
-                >
-                    <Bell className="w-4 h-4 md:w-5 md:h-5" />
-                    {unreadCount > 0 && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full animate-pulse border-2 border-[#161724]"></span>}
-                </button>
-            </div>
-
-            {userData?.currentGroupId && (
-                <button 
-                    onClick={() => setIsChatOpen(true)}
-                    className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center hover:bg-primary hover:text-white transition-all group relative"
-                >
-                    <MessageSquare className="w-4 h-4 md:w-5 md:h-5 transition-transform group-hover:scale-110" />
-                    {unreadMessages > 0 && (
-                        <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center animate-bounce border-2 border-[#161724]">
-                            {unreadMessages}
-                        </span>
-                    )}
-                </button>
-            )}
-
-            <button className="md:hidden text-white/70 hover:text-white transition-colors ml-2" onClick={() => setSidebarOpen(!isSidebarOpen)}>
-                 {isSidebarOpen ? <X className="w-6 h-6"/> : <Menu className="w-6 h-6"/>}
-            </button>
-        </div>
+      <div className="flex items-center gap-3">
+        <PWAInstallPrompt />
       </div>
-
-      <ChatDrawer 
-        isOpen={isChatOpen} 
-        onClose={() => setIsChatOpen(false)} 
-        chatId={userData?.currentGroupId || ""} 
-        chatName="Group Discussion" 
-        type="group" 
-      />
 
       <GroupInviteModal 
         isOpen={isInviteOpen} 
@@ -238,3 +132,4 @@ export function UserHeader() {
     </header>
   );
 }
+
