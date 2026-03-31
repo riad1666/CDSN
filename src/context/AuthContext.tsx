@@ -29,6 +29,8 @@ interface AuthContextType {
   setCurrentGroupId: (groupId: string | null) => void;
   isSidebarOpen: boolean;
   setSidebarOpen: (isOpen: boolean) => void;
+  isCollapsed: boolean;
+  setCollapsed: (isCollapsed: boolean) => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -39,13 +41,18 @@ const AuthContext = createContext<AuthContextType>({
   setCurrentGroupId: () => {},
   isSidebarOpen: false,
   setSidebarOpen: () => {},
+  isCollapsed: false,
+  setCollapsed: () => {},
 });
+
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSidebarOpen, setSidebarOpen] = useState(false);
+  const [isCollapsed, setCollapsed] = useState(false);
+
 
   const setCurrentGroupId = async (groupId: string | null) => {
     if (!user) return;
@@ -91,8 +98,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         currentGroupId: userData?.currentGroupId || null, 
         setCurrentGroupId,
         isSidebarOpen,
-        setSidebarOpen
+        setSidebarOpen,
+        isCollapsed,
+        setCollapsed
     }}>
+
       {children}
     </AuthContext.Provider>
   );

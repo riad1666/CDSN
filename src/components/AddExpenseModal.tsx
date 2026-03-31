@@ -6,16 +6,19 @@ import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase/config";
 import { collection, addDoc, updateDoc, doc } from "firebase/firestore";
 import { uploadReceipts } from "@/lib/firebase/storage";
-import { getGroupMembers, writeNotification, writeGroupActivity, UserBasicInfo } from "@/lib/firebase/firestore";
+import { getGroupMembers, writeNotification, writeGroupActivity, UserBasicInfo, Expense } from "@/lib/firebase/firestore";
 import toast from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
+import { useCurrency } from "@/context/CurrencyContext";
 
 export function AddExpenseModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
   const { userData } = useAuth();
+  const { formatPrice } = useCurrency();
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [receipts, setReceipts] = useState<File[]>([]);
+  const [category, setCategory] = useState<Expense['category']>("Other");
   const [loading, setLoading] = useState(false);
   
   const [members, setMembers] = useState<UserBasicInfo[]>([]);
@@ -27,8 +30,10 @@ export function AddExpenseModal({ isOpen, onClose }: { isOpen: boolean, onClose:
       setMembersLoading(true);
       getGroupMembers(userData.currentGroupId)
         .then(list => {
-           setMembers(list);
-           setSelectedMembers(list.map(u => u.uid));
+           // Filter out admins and superadmins from splitting
+           const eligibleMembers = list.filter(m => m.role !== "admin" && m.role !== "superadmin");
+           setMembers(eligibleMembers);
+           setSelectedMembers(eligibleMembers.map(u => u.uid));
         })
         .catch(err => console.error("Failed to fetch group members:", err))
         .finally(() => setMembersLoading(false));
@@ -67,6 +72,7 @@ export function AddExpenseModal({ isOpen, onClose }: { isOpen: boolean, onClose:
         splitBetween: selectedMembers,
         date,
         receipts: [],
+        category,
         groupId: userData.currentGroupId,
         isDeleted: false,
         createdAt: new Date().toISOString()
@@ -82,7 +88,7 @@ export function AddExpenseModal({ isOpen, onClose }: { isOpen: boolean, onClose:
       await writeGroupActivity(
         userData.currentGroupId, 
         "expense_added", 
-        `${userData.name} added a new expense: "${title}" (₩${parseFloat(amount).toLocaleString()})`,
+        `${userData.name} added a new expense: "${title}" (${formatPrice(parseFloat(amount))})`,
         userData.uid
       );
 
@@ -108,7 +114,7 @@ export function AddExpenseModal({ isOpen, onClose }: { isOpen: boolean, onClose:
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-300">
+    <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-300">
       <div className="glass-panel w-full max-w-lg p-8 relative border-white/10 shadow-2xl">
         <button onClick={onClose} className="absolute top-6 right-6 text-white/30 hover:text-white transition-colors bg-white/5 p-2 rounded-xl">
           <X className="w-5 h-5" />
@@ -128,9 +134,29 @@ export function AddExpenseModal({ isOpen, onClose }: { isOpen: boolean, onClose:
             />
           </div>
           
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-black text-white/40 uppercase tracking-widest ml-1">Category</label>
+            <div className="grid grid-cols-3 gap-2">
+               {["Food", "Utilities", "Supplies", "Kitchen", "Grocery", "Other"].map((cat) => (
+                 <button
+                   key={cat}
+                   type="button"
+                   onClick={() => setCategory(cat as any)}
+                   className={`py-2 px-3 rounded-xl border text-[9px] font-black uppercase tracking-widest transition-all ${
+                     category === cat 
+                     ? "bg-primary/20 border-primary text-primary shadow-[0_0_15px_rgba(var(--color-primary),0.2)]" 
+                     : "bg-white/2 border-white/5 text-white/40 hover:border-white/20"
+                   }`}
+                 >
+                   {cat}
+                 </button>
+               ))}
+            </div>
+          </div>
+          
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-white/40 uppercase tracking-widest ml-1">Amount (₩)</label>
+              <label className="text-[10px] font-black text-white/40 uppercase tracking-widest ml-1">Amount</label>
               <input 
                 type="number" 
                 placeholder="0" 

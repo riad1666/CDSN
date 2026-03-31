@@ -8,9 +8,11 @@ import { collection, addDoc, updateDoc, doc } from "firebase/firestore";
 import { uploadReceipts } from "@/lib/firebase/storage";
 import { getApprovedUsers, getGroupMembers } from "@/lib/firebase/firestore";
 import toast from "react-hot-toast";
+import { useCurrency } from "@/context/CurrencyContext";
 
 export function AddShoppingModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
   const { userData } = useAuth();
+  const { formatPrice } = useCurrency();
   const [title, setTitle] = useState("");
   const [items, setItems] = useState<{name: string, amount: string}[]>([{ name: "", amount: "" }]);
   const [images, setImages] = useState<File[]>([]);
@@ -98,7 +100,7 @@ export function AddShoppingModal({ isOpen, onClose }: { isOpen: boolean, onClose
                   <input type="text" placeholder="Item name" className="w-[60%] glass-input" value={item.name} onChange={(e) => {
                     const newItems = [...items]; newItems[index].name = e.target.value; setItems(newItems);
                   }} required />
-                  <input type="number" placeholder="₩ Amount" className="w-[30%] glass-input" value={item.amount} onChange={(e) => {
+                  <input type="number" placeholder="Amount" className="w-[30%] glass-input" value={item.amount} onChange={(e) => {
                     const newItems = [...items]; newItems[index].amount = e.target.value; setItems(newItems);
                   }} required />
                   {index === items.length - 1 ? (
@@ -110,7 +112,7 @@ export function AddShoppingModal({ isOpen, onClose }: { isOpen: boolean, onClose
              ))}
              <div className="flex justify-between items-center text-white/80 font-bold px-1 mt-4 mb-2">
                <span>Total Check Amount:</span>
-               <span className="text-primary text-xl">₩{items.reduce((acc, it) => acc + (parseFloat(it.amount) || 0), 0).toLocaleString()}</span>
+               <span className="text-primary text-xl">{formatPrice(items.reduce((acc, it) => acc + (parseFloat(it.amount) || 0), 0))}</span>
              </div>
           </div>
 

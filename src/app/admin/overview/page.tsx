@@ -18,10 +18,12 @@ import {
 import Link from "next/link";
 import { subscribeToSystemStats, subscribeToGlobalAnalytics, subscribeToAllActivities } from "@/lib/firebase/firestore";
 import { formatDistanceToNow } from "date-fns";
+import { useCurrency } from "@/context/CurrencyContext";
 
 const COLORS = ['#9333ea', '#2563eb', '#10b981', '#f59e0b', '#ef4444', '#ec4899'];
 
 export default function OverviewPage() {
+  const { formatPrice } = useCurrency();
   const [stats, setStats] = useState<any>(null);
   const [analytics, setAnalytics] = useState<any>(null);
   const [activities, setActivities] = useState<any[]>([]);
@@ -51,7 +53,7 @@ export default function OverviewPage() {
     { label: "Total Users", value: stats.totalUsers, p: "+12%", up: true, icon: Users, color: "bg-blue-500/10 text-blue-500", href: "/admin/users" },
     { label: "Active Users (24h)", value: stats.activeUsers24h, p: "+8%", up: true, icon: UserCheck, color: "bg-green-500/10 text-green-500", href: "/admin/users" },
     { label: "Total Groups", value: stats.totalGroups, p: "+3", up: true, icon: Layers, color: "bg-purple-500/10 text-purple-500", href: "/admin/groups" },
-    { label: "Total Expenses", value: `₩${stats.totalExpenses.toLocaleString()}`, p: "+15%", up: true, icon: DollarSign, color: "bg-orange-500/10 text-orange-500", href: "/admin/analytics" },
+    { label: "Total Expenses", value: formatPrice(stats.totalExpenses), p: "+15%", up: true, icon: DollarSign, color: "bg-orange-500/10 text-orange-500", href: "/admin/analytics" },
     { label: "Pending Requests", value: stats.pendingRequests, p: "-2", up: false, icon: Clock, color: "bg-pink-500/10 text-pink-500", href: "/admin/users" },
     { label: "Active Chats", value: stats.activeChats, p: "+24%", up: true, icon: MessageSquare, color: "bg-indigo-500/10 text-indigo-500", href: "/admin/chats" },
   ];
@@ -108,7 +110,7 @@ export default function OverviewPage() {
                             fontSize={10} 
                             tickLine={false} 
                             axisLine={false}
-                            tickFormatter={(v) => `₩${(v / 1000).toFixed(0)}k`}
+                            tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
                         />
                         <Tooltip 
                             contentStyle={{ backgroundColor: '#131422', border: '1px solid #ffffff10', borderRadius: '12px', fontSize: '10px', color: '#fff' }}

@@ -7,6 +7,7 @@ import { format } from "date-fns";
 import { Search, Edit, Trash2, DollarSign, ShoppingCart, CheckCircle2, Loader2 } from "lucide-react";
 import { getApprovedUsers, UserBasicInfo, Expense } from "@/lib/firebase/firestore";
 import toast from "react-hot-toast";
+import { useCurrency } from "@/context/CurrencyContext";
 interface ShoppingItem {
   id: string;
   title: string;
@@ -17,6 +18,7 @@ interface ShoppingItem {
 }
 
 export default function AdminExpensesPage() {
+  const { formatPrice } = useCurrency();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [shopping, setShopping] = useState<ShoppingItem[]>([]);
   const [usersMap, setUsersMap] = useState<Record<string, UserBasicInfo>>({});
@@ -126,7 +128,7 @@ export default function AdminExpensesPage() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className={`glass-card p-6 border ${activeTab === 'expenses' ? 'border-primary/20 bg-primary/5' : 'border-orange-500/20 bg-orange-500/5'}`}>
           <div className="text-sm font-medium text-white/50 mb-1">{activeTab === 'expenses' ? 'Total Expenses' : 'Total Shopping'}</div>
-          <div className={`text-2xl font-bold ${activeTab === 'expenses' ? 'text-white' : 'text-orange-400'}`}>₩{Math.round(totalAmount).toLocaleString()}</div>
+          <div className={`text-2xl font-bold ${activeTab === 'expenses' ? 'text-white' : 'text-orange-400'}`}>{formatPrice(totalAmount)}</div>
         </div>
         <div className="glass-card p-6 border border-white/5 bg-white/5">
           <div className="text-sm font-medium text-white/50 mb-1">Total Count</div>
@@ -161,7 +163,7 @@ export default function AdminExpensesPage() {
               {filtered.map((item: any) => (
                 <tr key={item.id} className="hover:bg-white/5 transition-colors group">
                   <td className="py-4 pl-4 font-medium text-white text-sm">{item.title}</td>
-                  <td className="py-4 font-bold text-white">₩{Math.round(item.amount).toLocaleString()}</td>
+                  <td className="py-4 font-bold text-white">{formatPrice(item.amount)}</td>
                   <td className="py-4 text-white/70 text-sm flex items-center gap-2">
                     {usersMap[activeTab === 'expenses' ? item.paidBy : item.addedBy]?.profileImage ? (
                         <img src={usersMap[activeTab === 'expenses' ? item.paidBy : item.addedBy].profileImage} className="w-6 h-6 rounded-full object-cover" />

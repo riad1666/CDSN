@@ -19,6 +19,7 @@ export function AssignCookingModal({ isOpen, onClose, initialDate }: AssignCooki
   const { userData } = useAuth();
   const [users, setUsers] = useState<UserBasicInfo[]>([]);
   const [assignedUser, setAssignedUser] = useState("");
+  const [meal, setMeal] = useState("");
   const [date, setDate] = useState(initialDate || new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(false);
 
@@ -57,6 +58,7 @@ export function AssignCookingModal({ isOpen, onClose, initialDate }: AssignCooki
       await addDoc(collection(db, "cookingSchedules"), {
         assignedUser,
         date,
+        meal,
         groupId: userData.currentGroupId,
         assignedBy: userData.uid,
         createdAt: new Date().toISOString(),
@@ -91,11 +93,11 @@ export function AssignCookingModal({ isOpen, onClose, initialDate }: AssignCooki
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="glass-panel w-full max-w-sm p-8 relative shadow-2xl border-white/10"
+        className="glass-card w-full max-w-sm p-8 relative shadow-2xl border-white/10"
       >
         <button onClick={onClose} className="absolute top-4 right-4 text-white/30 hover:text-white transition-colors">
           <X className="w-5 h-5" />
@@ -124,6 +126,17 @@ export function AssignCookingModal({ isOpen, onClose, initialDate }: AssignCooki
                 <option key={u.uid} value={u.uid} className="bg-[#0f101a]">{u.name} (Room {u.room})</option>
               ))}
             </select>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-white/40 uppercase tracking-widest block">Planned Meal / Menu</label>
+            <input 
+              type="text"
+              placeholder="e.g., Chicken Curry, Pasta Night"
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500 transition-all font-bold"
+              value={meal}
+              onChange={e => setMeal(e.target.value)}
+            />
           </div>
           
           <div className="space-y-2">

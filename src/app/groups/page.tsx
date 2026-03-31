@@ -16,11 +16,13 @@ import { db } from "@/lib/firebase/config";
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
+import { useCurrency } from "@/context/CurrencyContext";
 import { format } from "date-fns";
 import { useRouter } from "next/navigation";
 
 export default function GroupProfilePage() {
   const { userData, currentGroupId } = useAuth();
+  const { formatPrice } = useCurrency();
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -205,388 +207,358 @@ export default function GroupProfilePage() {
   const mySpending = groupExpenses.filter(e => e.paidBy === userData?.uid).reduce((s: number, e: Expense) => s + e.amount, 0);
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 pb-20">
+    <div className="max-w-7xl mx-auto space-y-8 pb-12">
       <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
 
-      {/* Header Card */}
-      <section className="glass-panel overflow-hidden relative border-white/10">
-        <div className="h-32 bg-linear-to-r from-primary/30 to-indigo-500/20 absolute top-0 left-0 w-full" />
-        <div className="relative pt-16 px-8 pb-8 flex flex-col md:flex-row items-end gap-6">
-
-          {/* Group Avatar */}
-          <div className="relative w-32 h-32">
-            <div className="w-32 h-32 rounded-3xl bg-[#1a1b2e] border-4 border-[#0f101a] flex items-center justify-center shadow-2xl overflow-hidden">
-              {group.profileImage
-                ? <img src={group.profileImage} alt={group.name} className="w-full h-full object-cover" />
-                : <span className="text-4xl font-black text-primary italic uppercase">{group.name.substring(0, 2)}</span>
-              }
-            </div>
-            {isOwner && (
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploadingImage}
-                title="Change group image"
-                className="absolute -bottom-2 -right-2 w-9 h-9 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/30 hover:scale-110 active:scale-95 transition-all cursor-pointer border-2 border-[#0f101a]"
-              >
-                {uploadingImage ? <Loader2 className="w-4 h-4 animate-spin text-white" /> : <Camera className="w-4 h-4 text-white" />}
-              </button>
-            )}
-          </div>
-
-          {/* Group Name (editable for owner) */}
-          <div className="flex-1 pb-2">
-            {editingName ? (
-              <div className="flex items-center gap-2 mb-2">
-                <input
-                  autoFocus
-                  value={newGroupName}
-                  onChange={e => setNewGroupName(e.target.value)}
-                  onKeyDown={e => { if (e.key === "Enter") handleSaveName(); if (e.key === "Escape") setEditingName(false); }}
-                  className="text-2xl font-black text-white bg-white/5 border border-primary/40 rounded-xl px-4 py-2 focus:outline-none focus:border-primary w-full tracking-tighter uppercase italic"
-                  placeholder="Group name..."
-                />
-                <button
-                  onClick={handleSaveName}
-                  disabled={savingName}
-                  className="px-4 py-2.5 rounded-xl bg-primary text-white text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all cursor-pointer shrink-0"
-                >
-                  {savingName ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save"}
-                </button>
-                <button onClick={() => setEditingName(false)} className="p-2.5 rounded-xl bg-white/5 text-white/40 hover:text-white transition-all cursor-pointer">
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-3 mb-2">
-                <h2 className="text-3xl font-black text-white tracking-tighter uppercase italic">{group.name}</h2>
-                {isOwner && (
-                  <button onClick={startEditName} title="Edit group name" className="p-1.5 rounded-lg bg-white/5 text-white/20 hover:text-white hover:bg-white/10 transition-all cursor-pointer">
-                    <Pencil className="w-3.5 h-3.5" />
-                  </button>
+      {/* 1. Group Identity Header */}
+      <section className="glass-card rounded-[3rem] overflow-hidden relative border-white/10 group/header">
+        <div className="h-48 bg-linear-to-br from-primary/30 via-indigo-900/40 to-black/60 relative overflow-hidden">
+           <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10"></div>
+           {group.profileImage && (
+             <img src={group.profileImage} className="w-full h-full object-cover blur-xl opacity-30 scale-110" />
+           )}
+        </div>
+        <div className="relative -mt-20 px-8 pb-10 flex flex-col md:flex-row items-end gap-8">
+           <div className="relative shrink-0">
+             <div className="w-40 h-40 rounded-[2.5rem] bg-[#0a0b14] border-8 border-[#0a0b14] shadow-2xl overflow-hidden group/avatar">
+                {group.profileImage ? (
+                  <img src={group.profileImage} className="w-full h-full object-cover group-hover/avatar:scale-110 transition-transform duration-500" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-primary/20 text-5xl font-black text-primary italic uppercase tracking-tighter">
+                    {group.name.substring(0, 2)}
+                  </div>
                 )}
-              </div>
-            )}
+                {isOwner && (
+                  <div 
+                    onClick={() => fileInputRef.current?.click()}
+                    className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity cursor-pointer backdrop-blur-sm"
+                  >
+                    <Camera className="w-8 h-8 text-white" />
+                  </div>
+                )}
+             </div>
+             {uploadingImage && (
+               <div className="absolute inset-0 bg-black/60 flex items-center justify-center rounded-[2.5rem] z-20">
+                 <Loader2 className="w-8 h-8 text-white animate-spin" />
+               </div>
+             )}
+           </div>
 
-            <div className="flex flex-wrap items-center gap-3 mt-1">
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-xl border border-white/10">
-                <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Invite:</span>
-                <span className="text-xs font-mono font-bold text-primary">{group.inviteCode}</span>
-                <button onClick={handleCopyCode} className="text-white/20 hover:text-white transition-colors cursor-pointer">
-                  {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+           <div className="flex-1 pb-4">
+              <div className="flex items-center gap-4 mb-4">
+                 {editingName ? (
+                   <div className="flex items-center gap-3 w-full max-w-lg">
+                      <input 
+                        autoFocus
+                        value={newGroupName}
+                        onChange={e => setNewGroupName(e.target.value)}
+                        className="text-4xl font-black text-white bg-white/5 border border-primary/40 rounded-2xl px-5 py-3 focus:outline-none focus:ring-4 focus:ring-primary/20 w-full tracking-tighter uppercase italic"
+                      />
+                      <button onClick={handleSaveName} className="p-4 bg-primary rounded-2xl text-white hover:scale-105 active:scale-95 transition-all">
+                         <Check className="w-6 h-6" />
+                      </button>
+                      <button onClick={() => setEditingName(false)} className="p-4 bg-white/5 rounded-2xl text-white/40 hover:text-white transition-all">
+                         <X className="w-6 h-6" />
+                      </button>
+                   </div>
+                 ) : (
+                    <div className="flex items-center gap-4">
+                       <h2 className="text-5xl font-black text-white tracking-tighter uppercase italic leading-none">{group.name}</h2>
+                       {isOwner && (
+                         <button onClick={startEditName} className="p-2 rounded-xl bg-white/5 text-white/20 hover:text-white hover:bg-white/10 transition-all">
+                            <Pencil className="w-4 h-4" />
+                         </button>
+                       )}
+                    </div>
+                 )}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-4">
+                <div className="px-5 py-2.5 bg-white/5 rounded-2xl border border-white/5 flex items-center gap-3 group/invite">
+                   <span className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">Group ID</span>
+                   <span className="text-sm font-mono font-bold text-primary group-hover:text-white transition-colors">{group.inviteCode}</span>
+                   <button onClick={handleCopyCode} className="ml-2 text-white/20 hover:text-white transition-all">
+                      {copied ? <Check className="w-4 h-4 text-success" /> : <Copy className="w-4 h-4" />}
+                   </button>
+                </div>
+                <div className="px-5 py-2.5 bg-white/2 rounded-2xl border border-white/5 text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">
+                   {group.memberIds.length} Members
+                </div>
+                {isOwner && <div className="px-5 py-2.5 bg-warning/10 text-warning rounded-2xl border border-warning/20 text-[10px] font-black uppercase tracking-[0.2em]">👑 Master Access</div>}
+              </div>
+           </div>
+
+           <div className="flex items-center gap-3 pb-4">
+              {!isOwner && (
+                <button onClick={handleLeave} className="px-8 py-4 bg-destructive/10 text-destructive border border-destructive/20 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-destructive hover:text-white transition-all flex items-center gap-2">
+                   <LogOut className="w-4 h-4" /> Exit Group
                 </button>
-              </div>
-              <div className="text-[10px] font-bold text-white/30 uppercase tracking-widest bg-white/5 px-3 py-1.5 rounded-xl border border-white/5">
-                {group.memberIds.length} Members
-              </div>
-              {isOwner && <div className="text-[10px] font-black text-amber-400 bg-amber-500/10 px-3 py-1.5 rounded-xl border border-amber-500/20">👑 Owner</div>}
-              {userRole === "admin" && <div className="text-[10px] font-black text-primary bg-primary/10 px-3 py-1.5 rounded-xl border border-primary/20">🛡 Admin</div>}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {!isOwner && (
-              <button onClick={handleLeave} className="px-5 py-2.5 rounded-xl bg-rose-500/10 text-rose-500 border border-rose-500/20 hover:bg-rose-500 hover:text-white transition-all font-black text-[10px] uppercase tracking-widest flex items-center gap-2 cursor-pointer">
-                <LogOut className="w-3 h-3" /> Leave Group
-              </button>
-            )}
-            {isOwner && (
-              <button 
-                onClick={handleDeleteGroup}
-                disabled={deletingGroup}
-                className="px-5 py-2.5 rounded-xl bg-red-600/10 text-red-500 border border-red-500/20 hover:bg-red-600 hover:text-white transition-all font-black text-[10px] uppercase tracking-widest flex items-center gap-2 cursor-pointer disabled:opacity-50"
-              >
-                {deletingGroup ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
-                Delete Group
-              </button>
-            )}
-          </div>
+              )}
+              {isOwner && (
+                <button onClick={handleDeleteGroup} className="px-8 py-4 bg-destructive/10 text-destructive border border-destructive/20 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-destructive hover:text-white transition-all flex items-center gap-2">
+                   <Trash2 className="w-4 h-4" /> Dissolve Group
+                </button>
+              )}
+           </div>
         </div>
       </section>
 
-      {/* Tabs */}
-      <div className="flex overflow-x-auto no-scrollbar gap-2 p-1 bg-white/5 rounded-2xl border border-white/5">
-        {[
-          { id: "members", label: "Members", icon: Users },
-          { id: "activity", label: "Activities", icon: Activity },
-          { id: "requests", label: "Requests", icon: UserPlus, adminOnly: true },
-          { id: "analytics", label: "Analytics", icon: BarChart },
-        ].filter(t => !t.adminOnly || isAdmin).map(tab => (
-          <button key={tab.id} onClick={() => setActiveTab(tab.id as any)}
-            className={`flex items-center gap-2 px-6 py-3 rounded-xl transition-all cursor-pointer whitespace-nowrap ${activeTab === tab.id ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-white/40 hover:bg-white/5 hover:text-white"}`}
-          >
-            <tab.icon className="w-4 h-4" />
-            <span className="text-xs font-black uppercase tracking-widest">{tab.label}</span>
-            {tab.id === "requests" && requests.length > 0 && (
-              <span className="ml-1 px-1.5 py-0.5 bg-white text-primary text-[10px] rounded-md font-black">{requests.length}</span>
-            )}
-          </button>
-        ))}
-      </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2">
-          <AnimatePresence mode="wait">
+        <div className="lg:col-span-2 space-y-8">
+           <div className="flex p-2 bg-white/5 rounded-[2rem] border border-white/5 overflow-x-auto no-scrollbar gap-2">
+              {[
+                { id: "members", label: "Members", icon: Users },
+                { id: "activity", label: "Activities", icon: Activity },
+                { id: "requests", label: "Requests", icon: UserPlus, count: requests.length, adminOnly: true },
+                { id: "analytics", label: "Insights", icon: BarChart },
+              ].filter(t => !t.adminOnly || isAdmin).map(tab => (
+                <button 
+                  key={tab.id} 
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`flex items-center gap-3 px-8 py-4 rounded-[1.5rem] transition-all whitespace-nowrap relative ${
+                    activeTab === tab.id ? "bg-primary text-white shadow-xl shadow-primary/30" : "text-white/30 hover:text-white hover:bg-white/5"
+                  }`}
+                >
+                  <tab.icon className={`w-5 h-5 ${activeTab === tab.id ? 'text-white' : 'text-primary'}`} />
+                  <span className="text-xs font-black uppercase tracking-widest">{tab.label}</span>
+                  {tab.count ? (
+                    <span className={`ml-2 px-2 py-0.5 rounded-lg text-[10px] font-black ${activeTab === tab.id ? 'bg-white text-primary' : 'bg-primary text-white'}`}>
+                      {tab.count}
+                    </span>
+                  ) : null}
+                </button>
+              ))}
+           </div>
 
-            {/* ── MEMBERS TAB ── */}
-            {activeTab === "members" && (
-              <motion.div key="members" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-3">
-                {members.map(member => {
-                  const mRole = group.memberRoles?.[member.uid] || "member";
-                  const isMe = member.uid === userId;
-                  // Owner can manage anyone who is not themselves and not another owner
-                  const canManage = isOwner && !isMe && mRole !== "owner";
+           <AnimatePresence mode="wait">
+              {activeTab === "members" && (
+                <motion.div key="members" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-4">
+                   {members.map((member) => {
+                     const mRole = group.memberRoles?.[member.uid] || "member";
+                     const isMe = member.uid === userId;
+                     const canManage = isOwner && !isMe && mRole !== "owner";
 
-                  return (
-                    <div key={member.uid} className="glass-card p-4 flex items-center justify-between hover:border-white/20 transition-colors">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
-                          {member.profileImage
-                            ? <img src={member.profileImage} alt={member.name} className="w-full h-full object-cover" />
-                            : <span className="text-white/20 font-black text-lg">{member.name.charAt(0)}</span>
-                          }
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h4 className="text-sm font-bold text-white">
-                              {member.name} {isMe && <span className="text-[10px] text-primary ml-1">(You)</span>}
-                            </h4>
-                            {mRole === "owner" && <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />}
-                            {mRole === "admin" && <Shield className="w-3.5 h-3.5 text-primary" />}
+                     return (
+                       <div key={member.uid} className="glass-card rounded-[2.5rem] p-6 flex items-center justify-between group hover:border-primary/30 transition-all">
+                          <div className="flex items-center gap-5">
+                             <div className="relative">
+                                {member.profileImage ? (
+                                  <img src={member.profileImage} className="w-16 h-16 rounded-2xl object-cover ring-2 ring-white/5 group-hover:ring-primary/40 transition-all" />
+                                ) : (
+                                  <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-xl font-black text-white/20 italic uppercase tracking-tighter">
+                                     {member.name.charAt(0)}
+                                  </div>
+                                )}
+                                <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-background ${mRole === 'owner' ? 'bg-warning' : mRole === 'admin' ? 'bg-primary' : 'bg-success/40'}`}></div>
+                             </div>
+                             <div>
+                                <h4 className="text-lg font-black text-white tracking-tight leading-none mb-1 uppercase italic">
+                                   {member.name} {isMe && <span className="text-[10px] font-black text-primary ml-2 tracking-widest">(YOU)</span>}
+                                </h4>
+                                <div className="text-[10px] text-white/30 font-bold uppercase tracking-widest">
+                                   {member.studentId} • Room {member.room || 'N/A'}
+                                </div>
+                             </div>
                           </div>
-                          <p className="text-[10px] text-white/30 font-bold uppercase tracking-widest">{member.studentId} • {mRole}</p>
-                        </div>
-                      </div>
 
-                      {/* ── Owner controls ── */}
-                      {canManage && (
-                        <div className="flex items-center gap-2 role-dropdown-container">
-                          {/* Role dropdown — uses pointerdown to avoid React 17 event timing issue */}
-                          <div className="relative">
-                            <button
-                              onPointerDown={(e) => {
-                                e.stopPropagation();
-                                setRoleDropdownOpen(prev => prev === member.uid ? null : member.uid);
-                              }}
-                              disabled={updatingRole === member.uid}
-                              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 text-white/60 hover:bg-primary/20 hover:text-primary transition-all text-[10px] font-black uppercase tracking-widest cursor-pointer border border-white/10"
-                            >
-                              {updatingRole === member.uid
-                                ? <Loader2 className="w-3 h-3 animate-spin" />
-                                : <>{mRole === "admin" ? "Admin" : "Member"}<ChevronDown className="w-3 h-3 ml-1" /></>
-                              }
-                            </button>
-
-                            <AnimatePresence>
-                              {roleDropdownOpen === member.uid && (
-                                <motion.div
-                                  initial={{ opacity: 0, scale: 0.95, y: -4 }}
-                                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                                  exit={{ opacity: 0, scale: 0.95, y: -4 }}
-                                  className="absolute right-0 top-full mt-2 w-40 glass-panel p-1 shadow-2xl z-50 border border-white/10"
-                                >
-                                  <button
-                                    onPointerDown={(e) => { e.stopPropagation(); handleChangeRole(member.uid, "admin"); }}
-                                    disabled={mRole === "admin"}
-                                    className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${mRole === "admin" ? "text-primary bg-primary/10 cursor-default" : "text-white/60 hover:bg-white/10 hover:text-white cursor-pointer"}`}
+                          <div className="flex items-center gap-3">
+                             <div className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest ${
+                               mRole === 'owner' ? 'bg-warning/10 text-warning' : mRole === 'admin' ? 'bg-primary/10 text-primary' : 'bg-white/5 text-white/40'
+                             }`}>
+                                {mRole}
+                             </div>
+                             {canManage && (
+                               <div className="flex items-center gap-2 role-dropdown-container">
+                                  <button 
+                                    onClick={() => setRoleDropdownOpen(prev => prev === member.uid ? null : member.uid)}
+                                    className="p-3 bg-white/5 rounded-xl text-white/40 hover:text-white transition-all"
                                   >
-                                    <Shield className="w-3 h-3" /> Make Admin
+                                     <ChevronDown className={`w-4 h-4 transition-transform ${roleDropdownOpen === member.uid ? 'rotate-180' : ''}`} />
                                   </button>
-                                  <button
-                                    onPointerDown={(e) => { e.stopPropagation(); handleChangeRole(member.uid, "member"); }}
-                                    disabled={mRole === "member"}
-                                    className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${mRole === "member" ? "text-white/40 bg-white/5 cursor-default" : "text-white/60 hover:bg-white/10 hover:text-white cursor-pointer"}`}
-                                  >
-                                    <Users className="w-3 h-3" /> Make Member
+                                  <button onClick={() => handleKick(member.uid)} className="p-3 bg-destructive/10 rounded-xl text-destructive hover:bg-destructive hover:text-white transition-all">
+                                     <UserMinus className="w-4 h-4" />
                                   </button>
-                                </motion.div>
-                              )}
-                            </AnimatePresence>
+                               </div>
+                             )}
                           </div>
+                       </div>
+                     )
+                   })}
+                </motion.div>
+              )}
 
-                          {/* Kick button */}
-                          <button onClick={() => handleKick(member.uid)} title="Remove member"
-                            className="p-2.5 rounded-xl bg-white/5 text-white/20 hover:bg-rose-500/20 hover:text-rose-500 transition-all cursor-pointer">
-                            <UserMinus className="w-4 h-4" />
-                          </button>
-                        </div>
-                      )}
-
-                      {/* Admin (non-owner) can kick members only */}
-                      {isAdmin && !isOwner && !isMe && mRole === "member" && (
-                        <button onClick={() => handleKick(member.uid)} title="Remove member"
-                          className="p-2.5 rounded-xl bg-white/5 text-white/20 hover:bg-rose-500/20 hover:text-rose-500 transition-all cursor-pointer">
-                          <UserMinus className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-              </motion.div>
-            )}
-
-            {/* ── ACTIVITY TAB ── */}
-            {activeTab === "activity" && (
-              <motion.div key="activity" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-4">
-                {activity.length === 0 ? (
-                  <div className="glass-card py-16 flex flex-col items-center justify-center text-center">
-                    <Activity className="w-12 h-12 text-white/5 mb-4" />
-                    <p className="text-white/20 text-xs font-black uppercase tracking-widest italic">No activities logged yet.</p>
-                  </div>
-                ) : activity.map(log => (
-                  <div key={log.id} className="flex gap-4 relative">
-                    <div className="w-px h-full bg-white/5 absolute left-4 top-10" />
-                    <div className="w-8 h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0 z-10">
-                      <Clock className="w-4 h-4 text-white/20" />
-                    </div>
-                    <div className="pb-6 pt-1">
-                      <p className="text-xs text-white/80 font-medium leading-relaxed bg-white/2 p-3 rounded-2xl border border-white/5 inline-block">{log.message}</p>
-                      <p className="text-[10px] text-white/30 mt-2 ml-1 font-bold uppercase tracking-tighter">{format(new Date(log.createdAt), "MMM d, h:mm a")}</p>
-                    </div>
-                  </div>
-                ))}
-              </motion.div>
-            )}
-
-            {/* ── REQUESTS TAB ── */}
-            {activeTab === "requests" && (
-              <motion.div key="requests" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-3">
-                {requests.length === 0 ? (
-                  <div className="glass-card py-16 flex flex-col items-center justify-center text-center">
-                    <UserPlus className="w-12 h-12 text-white/5 mb-4" />
-                    <p className="text-white/20 text-xs font-black uppercase tracking-widest italic">No pending join requests.</p>
-                  </div>
-                ) : requests.map(req => (
-                  <div key={req.id} className="glass-card p-5 flex items-center justify-between hover:border-white/20 transition-colors">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center border border-white/10">
-                        <Users className="w-6 h-6 text-white/30" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold text-white">Join Request</p>
-                        <p className="text-[10px] text-white/40 uppercase tracking-widest mt-0.5">UID: {req.userId.substring(0, 14)}...</p>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <button onClick={() => handleApprove(req)} className="px-5 py-2 rounded-xl bg-emerald-500 text-white hover:scale-105 active:scale-95 transition-all text-[10px] font-black uppercase tracking-widest cursor-pointer">Approve</button>
-                      <button onClick={() => handleReject(req)} className="px-5 py-2 rounded-xl bg-white/5 text-white/30 hover:bg-rose-500 hover:text-white transition-all text-[10px] font-black uppercase tracking-widest cursor-pointer">Reject</button>
-                    </div>
-                  </div>
-                ))}
-              </motion.div>
-            )}
-
-            {/* ── ANALYTICS TAB ── */}
-            {activeTab === "analytics" && (
-              <motion.div key="analytics" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-8">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="glass-card p-6 border-indigo-500/20 bg-indigo-500/5">
-                    <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">Total Expenses</p>
-                    <p className="text-3xl font-black text-white italic">₩{totalSpending.toLocaleString()}</p>
-                  </div>
-                  <div className="glass-card p-6 border-emerald-500/20 bg-emerald-500/5">
-                    <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">Avg / Month</p>
-                    <p className="text-3xl font-black text-white italic">
-                      ₩{groupExpenses.length > 0 ? Math.round(totalSpending / Math.max(1, new Set(groupExpenses.map(e => e.date?.substring(0, 7))).size)).toLocaleString() : 0}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="glass-panel p-6 border-white/5">
-                  <div className="flex items-center justify-between mb-8">
-                    <h4 className="text-xs font-black text-white uppercase tracking-widest">Monthly Spending Trend</h4>
-                    <PieChart className="w-4 h-4 text-white/20" />
-                  </div>
-                  <div className="h-48 flex items-end gap-3 px-2 border-b border-white/5 pb-2">
-                    {(() => {
-                      const monthly: Record<string, number> = {};
-                      groupExpenses.forEach(e => { const m = e.date?.substring(0, 7) || ""; if (m) monthly[m] = (monthly[m] || 0) + e.amount; });
-                      const sorted = Object.keys(monthly).sort().slice(-6);
-                      const max = Math.max(...Object.values(monthly), 1);
-                      if (sorted.length === 0) return <div className="flex-1 flex items-center justify-center text-white/20 text-xs font-bold uppercase tracking-widest">No expense data yet</div>;
-                      return sorted.map(m => (
-                        <div key={m} className="flex-1 flex flex-col items-center gap-2 group relative h-full justify-end">
-                          <div className="absolute -top-10 opacity-0 group-hover:opacity-100 transition-all bg-white text-black text-[10px] px-3 py-1.5 rounded-xl whitespace-nowrap z-20 font-black shadow-2xl">₩{monthly[m].toLocaleString()}</div>
-                          <div className="w-full bg-linear-to-t from-primary/80 to-indigo-500 rounded-t-xl transition-all group-hover:brightness-125" style={{ height: `${(monthly[m] / max) * 100}%`, minHeight: "8px" }}></div>
-                          <span className="text-[9px] text-white/30 font-black uppercase tracking-widest pt-2">{m.split("-")[1].replace(/^0/, "")}M</span>
-                        </div>
-                      ));
-                    })()}
-                  </div>
-                </div>
-
-                <div className="glass-panel p-6 border-white/5">
-                  <h4 className="text-xs font-black text-white uppercase tracking-widest mb-6">Contribution Breakdown</h4>
-                  <div className="space-y-5">
-                    {(() => {
-                      const contributors: Record<string, number> = {};
-                      groupExpenses.forEach(e => contributors[e.paidBy] = (contributors[e.paidBy] || 0) + e.amount);
-                      if (Object.keys(contributors).length === 0) return <div className="text-center py-8 text-white/20 text-xs font-bold uppercase tracking-widest">No data yet</div>;
-                      return Object.entries(contributors).sort((a, b) => b[1] - a[1]).map(([uid, amt]) => {
-                        const user = members.find(m => m.uid === uid);
-                        const pct = totalSpending > 0 ? (amt / totalSpending) * 100 : 0;
-                        return (
-                          <div key={uid} className="space-y-2">
-                            <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
-                              <span className="text-white/60 flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-primary" />{user?.name || "Unknown"}</span>
-                              <span className="text-white">₩{amt.toLocaleString()} <span className="text-white/30 ml-1">{Math.round(pct)}%</span></span>
-                            </div>
-                            <div className="h-2 bg-white/5 rounded-full overflow-hidden border border-white/5">
-                              <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 1.5, ease: "easeOut" }} className="h-full bg-linear-to-r from-primary to-indigo-500" />
-                            </div>
+              {activeTab === "activity" && (
+                <motion.div key="activity" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-6">
+                   {activity.length === 0 ? (
+                     <div className="glass-card rounded-[3rem] py-32 flex flex-col items-center justify-center text-center space-y-4">
+                        <Activity className="w-16 h-16 text-white/5" />
+                        <p className="text-white/20 font-black uppercase tracking-widest italic">No activities logged</p>
+                     </div>
+                   ) : (
+                     <div className="space-y-8 pl-4">
+                        {activity.map((log, i) => (
+                          <div key={log.id} className="relative flex gap-6">
+                             {i !== activity.length - 1 && <div className="absolute left-4 top-10 bottom-0 w-px bg-white/5"></div>}
+                             <div className="w-8 h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0 z-10">
+                                <Clock className="w-4 h-4 text-white/30" />
+                             </div>
+                             <div className="pb-8">
+                                <div className="glass-panel p-5 rounded-[1.5rem] border-white/5 inline-block">
+                                   <p className="text-sm text-white/80 font-medium leading-relaxed uppercase tracking-tight">{log.message}</p>
+                                </div>
+                                <p className="text-[10px] text-white/20 mt-3 font-black uppercase tracking-widest ml-1">{format(new Date(log.createdAt), "MMM d, h:mm a")}</p>
+                             </div>
                           </div>
-                        );
-                      });
-                    })()}
-                  </div>
-                </div>
-              </motion.div>
-            )}
+                        ))}
+                     </div>
+                   )}
+                </motion.div>
+              )}
 
-          </AnimatePresence>
+              {activeTab === "requests" && (
+                <motion.div key="requests" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-4">
+                   {requests.length === 0 ? (
+                     <div className="glass-card rounded-[3rem] py-32 flex flex-col items-center justify-center text-center space-y-4">
+                        <UserPlus className="w-16 h-16 text-white/5" />
+                        <p className="text-white/20 font-black uppercase tracking-widest italic">No pending requests</p>
+                     </div>
+                   ) : requests.map(req => (
+                     <div key={req.id} className="glass-card rounded-[2rem] p-6 flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                           <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center">
+                              <Users className="w-6 h-6 text-white/30" />
+                           </div>
+                           <div>
+                              <p className="text-sm font-black text-white uppercase italic tracking-tight">Access Request</p>
+                              <p className="text-[10px] text-white/30 font-bold uppercase tracking-widest">UID: {req.userId.substring(0, 8)}...</p>
+                           </div>
+                        </div>
+                        <div className="flex gap-2">
+                           <button onClick={() => handleApprove(req)} className="px-6 py-2.5 bg-success rounded-xl text-white text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all">Approve</button>
+                           <button onClick={() => handleReject(req)} className="px-6 py-2.5 bg-white/5 rounded-xl text-white/40 text-[10px] font-black uppercase tracking-widest hover:bg-destructive hover:text-white transition-all">Reject</button>
+                        </div>
+                     </div>
+                   ))}
+                </motion.div>
+              )}
+
+              {activeTab === "analytics" && (
+                <motion.div key="analytics" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-8">
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="glass-card rounded-[2.5rem] p-8 space-y-4 bg-info/5 border-info/20">
+                         <div className="w-12 h-12 rounded-2xl bg-info/20 flex items-center justify-center">
+                            <PieChart className="w-6 h-6 text-info" />
+                         </div>
+                         <div>
+                            <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] mb-1">Total Expenses</p>
+                            <h3 className="text-4xl font-black text-white tracking-tighter italic">{formatPrice(totalSpending)}</h3>
+                         </div>
+                      </div>
+                      <div className="glass-card rounded-[2.5rem] p-8 space-y-4 bg-success/5 border-success/20">
+                         <div className="w-12 h-12 rounded-2xl bg-success/20 flex items-center justify-center">
+                            <BarChart className="w-6 h-6 text-success" />
+                         </div>
+                         <div>
+                            <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] mb-1">Monthly Peak</p>
+                            <h3 className="text-4xl font-black text-white tracking-tighter italic">
+                               {formatPrice(groupExpenses.length > 0 ? (Math.max(...Object.values(groupExpenses.reduce((acc: Record<string, number>, e) => {
+                                 const m = e.date?.substring(0, 7) || 'n/a';
+                                 acc[m] = (acc[m] || 0) + e.amount;
+                                 return acc;
+                               }, {})) as number[])) : 0)}
+                            </h3>
+                         </div>
+                      </div>
+                   </div>
+
+                   <div className="glass-card rounded-[3rem] p-10 space-y-10">
+                      <div className="flex items-center justify-between">
+                         <h4 className="text-xl font-black text-white tracking-tighter uppercase italic">Spending Insights</h4>
+                         <Activity className="w-5 h-5 text-white/20" />
+                      </div>
+
+                      <div className="space-y-8">
+                        {(() => {
+                          const contributors: Record<string, number> = {};
+                          groupExpenses.forEach(e => contributors[e.paidBy] = (contributors[e.paidBy] || 0) + e.amount);
+                          return Object.entries(contributors).sort((a, b) => b[1] - a[1]).map(([uid, amt]) => {
+                            const user = members.find(m => m.uid === uid);
+                            const pct = totalSpending > 0 ? (amt / totalSpending) * 100 : 0;
+                            return (
+                              <div key={uid} className="space-y-3">
+                                <div className="flex justify-between items-end">
+                                  <div className="space-y-1">
+                                     <div className="text-[10px] font-black text-white/40 uppercase tracking-widest">{user?.name || 'Unknown'}</div>
+                                     <div className="text-lg font-black text-white tracking-tighter italic">{formatPrice(amt)}</div>
+                                  </div>
+                                  <div className="text-[10px] font-black text-primary tracking-widest">{Math.round(pct)}%</div>
+                                </div>
+                                <div className="h-3 bg-white/5 rounded-full overflow-hidden p-0.5 border border-white/5">
+                                  <motion.div 
+                                    initial={{ width: 0 }} 
+                                    animate={{ width: `${pct}%` }} 
+                                    transition={{ duration: 1.5, ease: "circOut" }} 
+                                    className="h-full bg-linear-to-r from-primary to-indigo-500 rounded-full" 
+                                  />
+                                </div>
+                              </div>
+                            );
+                          });
+                        })()}
+                      </div>
+                   </div>
+                </motion.div>
+              )}
+           </AnimatePresence>
         </div>
 
-        {/* Sidebar */}
-        <div className="space-y-6">
-          <section className="glass-panel p-7 border-primary/20 bg-linear-to-br from-primary/5 to-transparent relative overflow-hidden">
-            <div className="absolute -right-8 -top-8 w-24 h-24 bg-primary/10 blur-3xl rounded-full" />
-            <h3 className="text-sm font-black text-white uppercase tracking-tighter italic mb-6 flex items-center gap-2">
-              <Shield className="w-4 h-4 text-primary" /> Financial Overview
-            </h3>
-            <div className="space-y-5">
-              <div className="p-5 bg-white/5 rounded-2xl border border-white/5">
-                <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1.5">Total Group Spending</p>
-                <span className="text-2xl font-black text-white italic">₩{totalSpending.toLocaleString()}</span>
+        <div className="space-y-8">
+           <section className="glass-card rounded-[2.5rem] p-8 space-y-6 relative overflow-hidden bg-primary/5 border-primary/20">
+              <div className="absolute -right-16 -top-16 w-48 h-48 bg-primary/10 blur-[80px] rounded-full"></div>
+              
+              <div className="flex items-center gap-3 relative z-10">
+                 <Shield className="w-5 h-5 text-primary" />
+                 <h3 className="text-xl font-black text-white tracking-tight uppercase italic">Vault Access</h3>
               </div>
-              <div className="p-5 bg-primary/10 rounded-2xl border border-primary/20">
-                <p className="text-[10px] font-black text-primary/60 uppercase tracking-widest mb-1.5">Your Total Share</p>
-                <span className="text-2xl font-black text-primary italic">₩{mySpending.toLocaleString()}</span>
-              </div>
-            </div>
-          </section>
 
-          <section className="glass-panel p-7 border-white/5">
-            <h3 className="text-sm font-black text-white uppercase tracking-tighter italic mb-6">Group Directives</h3>
-            <div className="space-y-5">
-              <div className="flex gap-4">
-                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                </div>
-                <div>
-                  <p className="text-[10px] text-white/70 font-black uppercase tracking-widest mb-1">Encrypted Access</p>
-                  <p className="text-[10px] text-white/30 leading-relaxed uppercase">Only authenticated members can view financial records.</p>
-                </div>
+              <div className="space-y-4 relative z-10">
+                 <div className="glass-panel p-5 rounded-[1.5rem] border-white/5">
+                    <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] mb-1.5">Group Total</p>
+                    <div className="text-2xl font-black text-white italic">{formatPrice(totalSpending)}</div>
+                 </div>
+                 <div className="glass-panel p-5 rounded-[1.5rem] border-primary/10 bg-primary/10 flex items-center justify-between">
+                    <div>
+                       <p className="text-[10px] font-black text-primary/60 uppercase tracking-[0.2em] mb-1.5">Your Contribution</p>
+                       <div className="text-2xl font-black text-primary italic">{formatPrice(mySpending)}</div>
+                    </div>
+                    <div className="text-xs font-black text-primary opacity-40">{totalSpending > 0 ? Math.round((mySpending / totalSpending) * 100) : 0}%</div>
+                 </div>
               </div>
-              <div className="flex gap-4">
-                <div className="w-8 h-8 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
-                  <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                </div>
-                <div>
-                  <p className="text-[10px] text-white/70 font-black uppercase tracking-widest mb-1">Role Hierarchy</p>
-                  <p className="text-[10px] text-white/30 leading-relaxed uppercase">Owners and Admins hold full administrative authority.</p>
-                </div>
+           </section>
+
+           <section className="glass-card rounded-[2.5rem] p-8 space-y-8 border-white/5">
+              <h3 className="text-xl font-black text-white tracking-tight uppercase italic">Operations</h3>
+              <div className="space-y-6">
+                 <div className="flex gap-5">
+                    <div className="w-12 h-12 rounded-2xl bg-success/10 border border-success/20 flex items-center justify-center shrink-0">
+                       <ShieldAlert className="w-6 h-6 text-success" />
+                    </div>
+                    <div>
+                       <p className="text-xs font-black text-white uppercase tracking-widest mb-1 italic">Security Protocol</p>
+                       <p className="text-[10px] text-white/30 leading-relaxed font-bold uppercase">Multi-tier role management active</p>
+                    </div>
+                 </div>
+                 <div className="flex gap-5">
+                    <div className="w-12 h-12 rounded-2xl bg-info/10 border border-info/20 flex items-center justify-center shrink-0">
+                       <Activity className="w-6 h-6 text-info" />
+                    </div>
+                    <div>
+                       <p className="text-xs font-black text-white uppercase tracking-widest mb-1 italic">Audit Trail</p>
+                       <p className="text-[10px] text-white/30 leading-relaxed font-bold uppercase">Real-time group ledger enabled</p>
+                    </div>
+                 </div>
               </div>
-            </div>
-          </section>
+           </section>
         </div>
       </div>
     </div>

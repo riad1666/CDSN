@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowLeft, ChevronLeft, ChevronRight, Calendar as CalendarIcon, LayoutGrid, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Calendar as CalendarIcon, LayoutGrid, Plus, Trash2, ChefHat } from "lucide-react";
 import Link from "next/link";
 import { db } from "@/lib/firebase/config";
 import { collection, query, orderBy, onSnapshot, where, doc, updateDoc } from "firebase/firestore";
@@ -18,6 +18,7 @@ interface CookingSchedule {
   date: string;
   assignedUser: string;
   groupId: string;
+  meal?: string;
 }
 
 export default function CookingPage() {
@@ -105,177 +106,174 @@ export default function CookingPage() {
   });
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300 max-w-7xl mx-auto pt-4">
-      <div className="flex items-center gap-4 mb-8 pl-4">
-        <Link href="/dashboard" className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors">
-          <ArrowLeft className="w-5 h-5 text-white" />
-        </Link>
-        <div className="w-10 h-10 rounded-xl bg-orange-500/20 flex items-center justify-center">
-          <CalendarIcon className="w-5 h-5 text-orange-400" />
+    <div className="max-w-7xl mx-auto space-y-12 pb-20">
+      {/* 1. Culinary Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 pt-4 px-4 md:px-0">
+        <div className="space-y-1">
+          <h1 className="text-3xl md:text-5xl font-black text-white tracking-tighter italic uppercase flex items-center gap-4">
+             Culinary Schedule
+          </h1>
+          <p className="text-white/40 font-medium text-sm md:text-base">
+            Strategic meal planning and rotation logistics
+          </p>
         </div>
-        <h2 className="text-2xl font-bold text-white flex items-center gap-2 flex-1">
-           Cooking Schedule
-        </h2>
-        {isAdmin && (
-           <button 
-             onClick={() => setIsAssignOpen(true)}
-             className="mr-4 px-4 py-2 bg-orange-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-orange-600 transition-all shadow-lg shadow-orange-500/20 flex items-center gap-2"
-           >
-             <Plus className="w-4 h-4" /> Assign Duty
-           </button>
-        )}
+        
+        <div className="flex items-center gap-3">
+          {isAdmin && (
+            <button 
+              onClick={() => setIsAssignOpen(true)}
+              className="px-10 py-5 bg-orange-500 text-white rounded-[2rem] text-xs font-black uppercase tracking-[0.2em] hover:scale-105 active:scale-95 transition-all shadow-xl shadow-orange-500/30 flex items-center gap-3"
+            >
+              <Plus className="w-5 h-5" /> Assign Duty
+            </button>
+          )}
+        </div>
       </div>
 
-      <div className="glass-panel p-6 mb-8 mx-4">
-         <div className="flex flex-col md:flex-row items-center justify-between mb-8 gap-4">
-            <button onClick={() => setCurrentMonth(subMonths(currentMonth, 1))} className="glass-button-secondary py-2 px-4 shadow-none">
-              <ChevronLeft className="w-4 h-4" /> Previous
-            </button>
-            <h3 className="text-2xl font-bold text-white flex items-center gap-2">
-              <CalendarIcon className="w-6 h-6 text-orange-500" />
-              {format(currentMonth, "MMMM yyyy")}
-            </h3>
-            <button onClick={() => setCurrentMonth(addMonths(currentMonth, 1))} className="glass-button-secondary py-2 px-4 shadow-none">
-              Next <ChevronRight className="w-4 h-4" />
-            </button>
+      {/* 2. Month Selector Hub */}
+      <div className="glass-card rounded-[3rem] p-8 flex items-center justify-between mx-4 md:mx-0 border-white/5 relative overflow-hidden group">
+         <div className="absolute inset-0 bg-linear-to-r from-orange-500/5 via-transparent to-transparent"></div>
+         
+         <button onClick={() => setCurrentMonth(subMonths(currentMonth, 1))} className="p-4 bg-white/5 rounded-2xl text-white/40 hover:text-white transition-all relative z-10">
+            <ChevronLeft className="w-6 h-6" />
+         </button>
+
+         <div className="text-center relative z-10">
+            <h3 className="text-3xl md:text-4xl font-black text-white tracking-tighter uppercase italic">{format(currentMonth, "MMMM")}</h3>
+            <p className="text-[10px] font-black text-orange-500 uppercase tracking-[0.4em] mt-1">{format(currentMonth, "yyyy")} Deployment</p>
          </div>
 
-         {/* Calendar Grid */}
-         <div className="grid grid-cols-7 gap-2 md:gap-4">
-            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-              <div key={day} className="text-center text-white/50 text-xs md:text-sm font-semibold py-2">
-                {day}
-              </div>
-            ))}
-            
-            {/* Offset for first day of month */}
-            {Array.from({ length: startOfMonth(currentMonth).getDay() }).map((_, i) => (
-              <div key={`empty-${i}`} className="h-20 md:h-28 rounded-xl bg-white/5 opacity-50"></div>
-            ))}
-            
-            {days.map(day => {
-               const dateStr = format(day, "yyyy-MM-dd");
-               const daySchedules = schedules.filter(s => s.date === dateStr);
-               
-               const bDayMonthDay = format(day, "MM-dd");
-               const bdayUsers = Object.values(usersMap).filter(u => u.dob && u.dob.slice(5) === bDayMonthDay && group?.memberIds.includes(u.uid));
-               const isBirthday = bdayUsers.length > 0;
-               
-               return (
-                 <div 
-                   key={day.toString()} 
-                   onClick={() => {
-                      if (isBirthday) {
-                         bdayUsers.forEach(bu => {
-                            toast.custom((t) => (
-                               <div className={`${t.visible ? 'scale-100 opacity-100' : 'scale-95 opacity-0'} transition-all duration-300 max-w-sm w-full bg-[#232048] shadow-2xl rounded-xl pointer-events-auto flex border border-white/10 overflow-hidden`}>
-                                  <div className="flex-1 w-0 p-4">
-                                     <div className="flex items-center">
-                                        <div className="shrink-0">
-                                           {bu.profileImage ? (
-                                              <img className="h-12 w-12 rounded-full object-cover border-2 border-pink-500" src={bu.profileImage} alt="" />
-                                           ) : (
-                                              <div className="h-12 w-12 rounded-full bg-white/10 border-2 border-pink-500" />
-                                           )}
-                                        </div>
-                                        <div className="ml-4 flex-1">
-                                           <p className="text-sm font-bold text-white flex items-center gap-2">Happy Birthday! <span className="text-xl">🎂</span></p>
-                                           <p className="text-xs font-semibold text-pink-400 mt-0.5">{bu.name} <span className="text-white/40 font-normal border-l border-white/20 pl-2 ml-2">Room {bu.room}</span></p>
-                                        </div>
-                                     </div>
+         <button onClick={() => setCurrentMonth(addMonths(currentMonth, 1))} className="p-4 bg-white/5 rounded-2xl text-white/40 hover:text-white transition-all relative z-10">
+            <ChevronRight className="w-6 h-6" />
+         </button>
+      </div>
+
+      {/* 3. The Schedule Feed */}
+      <div className="space-y-8 px-4 md:px-0">
+        <div className="flex items-center gap-4 border-b border-white/5 pb-4">
+           <h4 className="text-sm font-black text-white/60 uppercase tracking-widest italic">Upcoming Rotations</h4>
+           <div className="flex-1 h-px bg-white/5"></div>
+           <CalendarIcon className="w-4 h-4 text-white/20" />
+        </div>
+
+        <div className="space-y-6">
+           {schedules.filter(s => format(new Date(s.date), 'yyyy-MM') === format(currentMonth, 'yyyy-MM')).length === 0 ? (
+             <div className="glass-card rounded-[3rem] py-32 flex flex-col items-center justify-center text-center space-y-4 opacity-50">
+                <ChefHat className="w-16 h-16 text-white/20" />
+                <p className="text-[10px] font-black text-white/40 uppercase tracking-widest italic">No deployments scheduled for this cycle</p>
+             </div>
+           ) : (
+             schedules.filter(s => format(new Date(s.date), 'yyyy-MM') === format(currentMonth, 'yyyy-MM')).map((sch, i) => {
+                const user = usersMap[sch.assignedUser];
+                const isMe = sch.assignedUser === userData?.uid;
+                const dateObj = new Date(sch.date);
+                
+                return (
+                  <motion.div 
+                    key={sch.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.05 }}
+                    className={`glass-card rounded-[2.5rem] overflow-hidden flex flex-col md:flex-row items-stretch group hover:border-orange-500/30 transition-all border-white/5 ${isMe ? 'ring-2 ring-orange-500/20' : ''}`}
+                  >
+                    {/* Left: Date Ribbon */}
+                    <div className="w-full md:w-40 bg-linear-to-br from-orange-500 to-amber-600 p-6 flex flex-col items-center justify-center shrink-0">
+                       <span className="text-5xl font-black text-white tracking-tighter italic">{format(dateObj, "dd")}</span>
+                       <span className="text-xs font-black text-white/60 uppercase tracking-widest mt-1">{format(dateObj, "EEE")}</span>
+                    </div>
+
+                    {/* Center: Meal & Chef */}
+                    <div className="flex-1 p-8 flex items-center justify-between gap-8">
+                       <div className="space-y-4">
+                          <div className="space-y-1">
+                             <p className="text-[10px] font-black text-orange-500 uppercase tracking-widest">Main Menu / Payload</p>
+                             <h4 className="text-2xl md:text-3xl font-black text-white tracking-tighter uppercase italic truncate max-w-md">
+                                {sch.meal || "Untitled Culinary Operation"}
+                             </h4>
+                          </div>
+
+                          <div className="flex items-center gap-4">
+                             <div className="relative">
+                                {user?.profileImage ? (
+                                  <img src={user.profileImage} className="w-10 h-10 rounded-xl object-cover ring-2 ring-white/10 group-hover:ring-orange-500/40 transition-all" />
+                                ) : (
+                                  <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/10 flex items-center justify-center text-xs font-black text-white/20 uppercase">
+                                     {user?.name.charAt(0)}
                                   </div>
-                               </div>
-                            ), { duration: 5000 });
-                         });
-                      }
-                   }}
-                   className={`h-20 md:h-28 rounded-xl p-1 md:p-2 relative flex flex-col items-center border 
-                     ${daySchedules.length > 0 ? (daySchedules.some(s => s.assignedUser === userData?.uid) ? 'bg-orange-500/20 border-orange-500/40 shadow-[0_0_15px_rgba(249,115,22,0.15)] ring-1 ring-orange-500/50' : 'bg-primary/20 border-primary/40 shadow-[0_0_15px_rgba(var(--color-primary),0.1)]') : 'bg-white/5 border-transparent'} 
-                     ${isBirthday ? 'cursor-pointer hover:bg-pink-500/10 ring-2 ring-pink-500/50' : ''} transition-all`}
-                 >
-                   <span className={`absolute top-1 md:top-2 left-1.5 md:left-2 text-[10px] md:text-sm font-bold ${daySchedules.some(s => s.assignedUser === userData?.uid) ? 'text-orange-400' : isBirthday ? 'text-pink-400' : 'text-white/60'}`}>{format(day, "d")}</span>
-                   
-                   {isBirthday && (
-                      <span className={`absolute animate-pulse ${daySchedules.length > 0 ? 'bottom-1 right-1 md:bottom-2 md:right-2 text-sm md:text-lg' : 'top-1 right-1 md:top-1 md:right-2 text-sm md:text-2xl z-10'}`}>🎂</span>
-                   )}
+                                )}
+                                <div className="absolute -bottom-1 -right-1 w-3 h-3 rounded-full bg-success border-2 border-background"></div>
+                             </div>
+                             <div>
+                                <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Assigned Chef</p>
+                                <p className="text-sm font-black text-white italic uppercase tracking-tight">
+                                   {user?.name || "Unknown Operator"} {isMe && <span className="text-orange-500 ml-2">(YOU)</span>}
+                                </p>
+                             </div>
+                          </div>
+                       </div>
 
-                   {daySchedules.length > 0 ? (
-                      <div className="w-full mt-auto flex justify-center gap-1 md:gap-2 flex-wrap h-full pt-4 md:pt-6 pb-0.5">
-                         {daySchedules.map(sch => {
-                            const user = usersMap[sch.assignedUser];
-                            if (!user) return null;
-                            const isMe = sch.assignedUser === userData?.uid;
-                            return (
-                               <div key={sch.id} className="flex flex-col items-center justify-end h-full">
-                                  {user.profileImage ? (
-                                     <img src={user.profileImage} alt={user.name} className={`w-5 h-5 md:w-8 md:h-8 rounded-full object-cover border shadow-md ${isMe ? 'border-orange-400/80 shadow-[0_0_8px_rgba(249,115,22,0.3)] ring-1 ring-orange-500/50' : 'border-indigo-400/50'}`} />
-                                  ) : (
-                                     <div className={`w-5 h-5 md:w-8 md:h-8 rounded-full bg-white/10 border shadow-md ${isMe ? 'border-orange-400/80 ring-1 ring-orange-500/50' : 'border-indigo-400/50'}`} />
-                                  )}
-                                  <span className={`text-[7px] md:text-[10px] font-bold mt-0.5 truncate max-w-[32px] md:max-w-[44px] text-center mix-blend-screen leading-none ${isMe ? 'text-orange-300 drop-shadow-[0_0_2px_rgba(249,115,22,0.8)]' : 'text-white'}`}>{user.name.split(" ")[0]}</span>
-                               </div>
-                            );
-                         })}
-                      </div>
-                   ) : (
-                      <div className="mt-auto mb-1 md:mb-2 text-[8px] md:text-[10px] text-white/20 italic truncate leading-none">Open date</div>
-                   )}
-                 </div>
-               )
-            })}
-         </div>
-      </div>
-
-      <div className="glass-panel p-6 mx-4 mb-12">
-         <h3 className="text-lg font-bold text-white flex items-center gap-3 border-b border-white/10 pb-4 mb-4">
-            <span className="w-8 h-8 rounded-lg bg-orange-500/20 flex items-center justify-center">
-               <CalendarIcon className="w-4 h-4 text-orange-400" />
-            </span>
-            Upcoming Assignments
-         </h3>
-         <div className="space-y-4">
-           {schedules.filter(s => new Date(s.date) >= new Date(new Date().setHours(0,0,0,0))).slice(0, 5).map(s => {
-             const u = usersMap[s.assignedUser];
-             if (!u) return null;
-             return (
-               <div key={s.id} className="glass-card hover:bg-white/10 transition-colors p-4 flex items-center justify-between border border-transparent hover:border-orange-500/30">
-                  <div className="flex items-center gap-4">
-                    <div className="relative">
-                      {u.profileImage ? (
-                        <img src={u.profileImage} className="w-12 h-12 rounded-full object-cover border border-white/20" />
-                      ) : (
-                        <div className="w-12 h-12 rounded-full bg-white/10" />
-                      )}
-                      <div className="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-[#1a1b2e] bg-emerald-500"></div>
+                       <div className="hidden md:flex flex-col items-end gap-3 shrink-0">
+                          <div className="px-4 py-2 bg-white/5 rounded-xl border border-white/5 text-[9px] font-black text-white/40 uppercase tracking-widest">
+                             Room {user?.room || "N/A"}
+                          </div>
+                          {isAdmin && (
+                            <button 
+                              onClick={() => handleDelete(sch.id)}
+                              className="w-10 h-10 rounded-xl bg-destructive/10 text-destructive border border-destructive/20 flex items-center justify-center hover:bg-destructive hover:text-white transition-all shadow-lg shadow-destructive/10"
+                            >
+                               <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                       </div>
                     </div>
-                    <div>
-                      <div className="text-white font-semibold">{u.name}</div>
-                      <div className="text-white/40 text-xs mt-0.5">Room {u.room}</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="text-right">
-                      <div className="text-white font-bold text-sm md:text-md">{s.date}</div>
-                      <div className="text-xs text-white/50 mt-1 uppercase tracking-wider">{format(new Date(s.date), "EEEE")}</div>
-                    </div>
-                    {isAdmin && (
-                      <button 
-                          onClick={() => handleDelete(s.id)}
-                          className="w-8 h-8 rounded-lg bg-rose-500/10 text-rose-500 flex items-center justify-center hover:bg-rose-500 hover:text-white transition-all ml-2"
-                      >
-                          <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-               </div>
-             )
-           })}
-           {schedules.filter(s => new Date(s.date) >= new Date(new Date().setHours(0,0,0,0))).length === 0 && (
-             <div className="text-center py-6 text-white/50 text-sm">No upcoming cooking schedules.</div>
+                  </motion.div>
+                )
+             })
            )}
-         </div>
+        </div>
       </div>
-      
+
+      {/* 4. Strategic Overview */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 px-4 md:px-0">
+         <section className="glass-card rounded-[3rem] p-10 space-y-6 relative overflow-hidden bg-orange-500/5 border-orange-500/20">
+            <div className="absolute -right-16 -top-16 w-48 h-48 bg-orange-500/10 blur-[80px] rounded-full"></div>
+            <h3 className="text-xl font-black text-white tracking-tighter uppercase italic flex items-center gap-3 relative z-10">
+               <ChefHat className="w-5 h-5 text-orange-400" /> Duty Distribution
+            </h3>
+            <div className="space-y-4 relative z-10">
+               {/* Small horizontal bar chart of deployments per person */}
+               {(() => {
+                  const counts: Record<string, number> = {};
+                  schedules.forEach(s => counts[s.assignedUser] = (counts[s.assignedUser] || 0) + 1);
+                  return Object.entries(counts).sort((a,b) => b[1] - a[1]).slice(0, 3).map(([uid, count]) => {
+                     const u = usersMap[uid];
+                     const max = Math.max(...Object.values(counts));
+                     return (
+                        <div key={uid} className="space-y-2">
+                           <div className="flex justify-between text-[9px] font-black uppercase tracking-widest">
+                              <span className="text-white/40">{u?.name || "Member"}</span>
+                              <span className="text-orange-400">{count} Duty Cycles</span>
+                           </div>
+                           <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+                              <motion.div initial={{ width: 0 }} animate={{ width: `${(count/max)*100}%` }} className="h-full bg-orange-500 rounded-full" />
+                           </div>
+                        </div>
+                     )
+                  })
+               })()}
+            </div>
+         </section>
+
+         <section className="glass-card rounded-[3rem] p-10 flex items-center justify-center text-center relative overflow-hidden border-dashed border-white/10 group">
+            <div className="space-y-4">
+               <div className="w-16 h-16 rounded-[2rem] bg-white/5 flex items-center justify-center mx-auto border border-white/10 group-hover:bg-white/10 transition-all">
+                  <LayoutGrid className="w-8 h-8 text-white/20" />
+               </div>
+               <p className="text-[10px] font-bold text-white/30 uppercase tracking-[0.3em]">Integrate with External Calendar Protocols Soon</p>
+            </div>
+         </section>
+      </div>
+
       <AssignCookingModal 
         isOpen={isAssignOpen} 
         onClose={() => setIsAssignOpen(false)} 

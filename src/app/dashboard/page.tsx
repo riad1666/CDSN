@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { Bell, TrendingUp, TrendingDown, DollarSign, User as UserIcon, Plus, Lock, ChefHat, LayoutGrid, Users, Loader2, Camera, Trash2, X, PlusCircle } from "lucide-react";
+import { Bell, TrendingUp, TrendingDown, DollarSign, User as UserIcon, Plus, Lock, ChefHat, LayoutGrid, Users, Loader2, Camera, Trash2, X, PlusCircle, ShoppingCart, ShieldCheck } from "lucide-react";
 import { subscribeToNotices, subscribeToExpenses, subscribeToSettlements, getApprovedUsers, Notice, Expense, Settlement, UserBasicInfo, Group, subscribeToUserGroups, updateGroupCoverPhoto, subscribeToAllUnread } from "@/lib/firebase/firestore";
 import { format } from "date-fns";
 import Link from "next/link";
@@ -20,9 +20,11 @@ import { JoinGroupModal } from "@/components/JoinGroupModal";
 import { updateGroupProfileImage } from "@/lib/firebase/firestore";
 import { ChatDrawer } from "@/components/ChatDrawer";
 import { MessageSquare } from "lucide-react";
+import { useCurrency } from "@/context/CurrencyContext";
 
 export default function DashboardPage() {
   const { userData } = useAuth();
+  const { formatPrice } = useCurrency();
   const [notices, setNotices] = useState<Notice[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [settlements, setSettlements] = useState<Settlement[]>([]);
@@ -253,352 +255,221 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="space-y-4 md:space-y-6">
-      {/* Group Header with Cover Photo */}
-      <div className="relative h-40 md:h-64 rounded-2xl md:rounded-3xl overflow-hidden mb-4 md:mb-8 border border-white/10 group/cover bg-linear-to-br from-indigo-900/40 to-black/40">
-        {group?.coverImage ? (
-            <img src={group.coverImage} className="w-full h-full object-cover" alt="Group Cover" />
-        ) : (
-            <div className="w-full h-full flex items-center justify-center">
-                <Users className="w-16 h-16 text-white/5" />
-            </div>
-        )}
-        <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/20 to-transparent"></div>
-        
-        <div className="absolute bottom-4 md:bottom-6 left-4 md:left-8 flex items-end gap-3 md:gap-6 w-full pr-8 md:pr-12">
-            <div className="relative shrink-0 group/profile">
-                <div className="w-16 h-16 md:w-24 md:h-24 rounded-xl md:rounded-2xl bg-[#0f101a] border-2 md:border-4 border-[#0f101a] overflow-hidden shadow-2xl relative">
-                    {group?.profileImage ? (
-                        <img src={group.profileImage} className="w-full h-full object-cover" alt={group.name} />
-                    ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-primary/20 text-primary font-black text-2xl uppercase italic tracking-tighter">
-                            {group?.name?.substring(0, 2)}
-                        </div>
-                    )}
-                    
-                    {isAdmin && (
-                        <div 
-                            onClick={() => profileInputRef.current?.click()}
-                            className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover/profile:opacity-100 transition-opacity cursor-pointer"
-                        >
-                            <Camera className="w-6 h-6 text-white" />
-                        </div>
-                    )}
-                    {isUpdatingProfile && (
-                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                            <Loader2 className="w-6 h-6 text-white animate-spin" />
-                        </div>
-                    )}
+    <div className="max-w-7xl mx-auto space-y-8 pb-12">
+      {/* 1. Welcome Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-2">
+        <div className="space-y-1">
+          <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight flex items-center gap-2">
+            Welcome back, {userData?.name?.split(' ')[0] || 'User'}! 👋
+          </h1>
+          <p className="text-white/40 font-medium text-sm md:text-base">
+            Here's what's happening with your finances today
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+           <button 
+             onClick={() => setExpenseOpen(true)}
+             className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center text-white shadow-lg shadow-primary/30 hover:scale-105 active:scale-95 transition-all"
+           >
+             <Plus className="w-6 h-6" />
+           </button>
+        </div>
+      </div>
+
+      {/* 2. Notice Board */}
+      <section className="glass-card rounded-[2.5rem] p-6 md:p-8 space-y-6">
+        <div className="flex items-center gap-3">
+           <div className="w-10 h-10 rounded-xl bg-warning/20 flex items-center justify-center">
+             <Bell className="w-5 h-5 text-warning" />
+           </div>
+           <h2 className="text-xl font-black text-white tracking-tight uppercase">Notice Board</h2>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+           {cookingDate && (
+             <div className="glass-panel p-4 rounded-3xl border-warning/10 flex items-center gap-4 bg-warning/5">
+                <div className="w-12 h-12 rounded-2xl bg-warning flex items-center justify-center shrink-0">
+                  <ChefHat className="w-6 h-6 text-white" />
                 </div>
-                <input type="file" ref={profileInputRef} onChange={handleProfileChange} className="hidden" accept="image/*" />
-            </div>
-            <div className="flex-1 pb-1">
-                <h1 className="text-xl md:text-4xl font-black text-white tracking-tighter uppercase italic leading-none truncate">{group?.name}</h1>
-                <p className="text-[8px] md:text-[10px] text-white/40 font-bold uppercase tracking-[0.2em] md:tracking-[0.3em] mt-1 md:mt-2 flex items-center gap-2">
-                    <Users className="w-2.5 h-2.5 md:w-3 md:h-3" /> {group?.memberIds?.length || 0} <span className="hidden xs:inline">Members</span> • ID: {group?.inviteCode}
-                </p>
-            </div>
-            
-            <div className="flex gap-2 mb-1">
-                {isAdmin && (
-                    <button 
-                        onClick={() => coverInputRef.current?.click()}
-                        disabled={isUpdatingCover}
-                        className="glass-button py-2 px-3 text-[10px] flex items-center gap-2 border-white/20 hover:bg-white/10"
-                    >
-                        {isUpdatingCover ? <Loader2 className="w-3 h-3 animate-spin"/> : <Camera className="w-3.5 h-3.5" />}
-                        <span className="hidden md:inline">Edit Cover</span>
-                    </button>
-                )}
-                
-                <button 
-                    onClick={() => setChatOpen(true)}
-                    className="glass-button py-2 px-3 text-[10px] flex items-center gap-2 bg-primary/20 border-primary/30 text-white relative hover:scale-105 transition-all"
-                >
-                    <MessageSquare className="w-3.5 h-3.5 text-primary" />
-                    <span className="hidden md:inline">Group Chat</span>
-                    {unreadCount > 0 && (
-                        <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-rose-500 text-[8px] font-black flex items-center justify-center border-2 border-[#0f101a] animate-bounce">
-                            {unreadCount}
-                        </span>
-                    )}
-                </button>
-                
-                <input type="file" ref={coverInputRef} onChange={handleCoverChange} className="hidden" accept="image/*" />
-            </div>
-        </div>
-      </div>
-
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-primary/20 flex items-center justify-center">
-              <PlusCircle className="w-4 h-4 md:w-5 md:h-5 text-primary" />
-            </div>
-            <h2 className="text-xl md:text-2xl font-black text-white tracking-tight uppercase italic">Transactions</h2>
-          </div>
-          <div className="flex flex-wrap gap-2">
-              {isAdmin && (
-                <>
-                    <button 
-                        onClick={() => setNoticeOpen(true)}
-                        className="glass-button text-[8px] md:text-[10px] px-3 md:px-4 py-1.5 md:py-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-black tracking-widest hover:bg-emerald-500 hover:text-white"
-                    >
-                        Notice
-                    </button>
-                </>
-              )}
-              <button onClick={() => setExpenseOpen(true)} className="glass-button text-[9px] md:text-xs px-3 md:px-4 py-1.5 md:py-2 font-black tracking-widest uppercase">
-                Expense
-              </button>
-              <button onClick={() => setSettleOpen(true)} className="glass-button-secondary text-[9px] md:text-xs px-3 md:px-4 py-1.5 md:py-2 bg-white/5 border border-white/10 hover:bg-white/10 font-black tracking-widest uppercase">
-                 Settle
-              </button>
-          </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-         {cookingDate && (
-            <div className={`p-5 rounded-2xl border border-orange-500/30 bg-orange-500/10 backdrop-blur-md`}>
-              <div className="flex items-center justify-between mb-3">
-                <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full text-white uppercase tracking-wide bg-orange-500`}>
-                  YOUR COOKING DUTY
-                </span>
-                <span className="text-xs text-white/50">
-                  {cookingDate}
-                </span>
-              </div>
-              <h3 className="text-white font-semibold mb-2 flex items-center gap-2"><ChefHat className="w-5 h-5 text-orange-400"/> Reminder</h3>
-              <p className="text-sm text-white/70 leading-relaxed">You are scheduled for cooking duty on {format(new Date(cookingDate), "EEEE, MMMM do")}. Please be prepared!</p>
-            </div>
-         )}
-         
-         {notices.length === 0 && !cookingDate && <div className="col-span-3 text-white/40 text-sm p-8 text-center glass-panel border-dashed">No active notices for this group.</div>}
-         {notices.map(notice => {
-            const theme = getNoticeTheme(notice.type);
-            return (
-              <div key={notice.id} className={`p-5 rounded-2xl border ${theme.border} ${theme.bg} backdrop-blur-md relative group/notice transition-all hover:scale-[1.02]`}>
-                {isAdmin && (
-                    <button 
-                        onClick={() => handleDeleteNotice(notice.id)}
-                        className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-rose-500 text-white flex items-center justify-center opacity-0 group-hover/notice:opacity-100 transition-all shadow-lg hover:bg-rose-600 z-10"
-                    >
-                        <X className="w-4 h-4" />
-                    </button>
-                )}
-                <div className="flex items-center justify-between mb-3">
-                  <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full text-white uppercase tracking-wide ${theme.tag}`}>
-                    {notice.type}
-                  </span>
-                  <span className="text-xs text-white/50">
-                    {notice.createdAt ? format(new Date(notice.createdAt), "yyyy-MM-dd") : ""}
-                  </span>
+                <div>
+                   <div className="text-sm font-bold text-white leading-tight">Cooking Duty Today</div>
+                   <div className="text-[10px] text-white/40 uppercase font-black tracking-widest mt-0.5">6:00 PM • {cookingDate}</div>
                 </div>
-                <h3 className="text-white font-semibold mb-2">{notice.title}</h3>
-                <p className="text-sm text-white/70 leading-relaxed">{notice.message}</p>
-              </div>
-            )
-         })}
-      </div>
-
-      {/* Pending Settlement Requests */}
-      {settlements.filter(s => s.toUser === userData?.uid && s.status === 'pending').length > 0 && (
-        <div className="mb-8 space-y-3">
-          <h3 className="text-sm font-bold text-white/40 uppercase tracking-widest flex items-center gap-2">
-            Pending Settlements
-          </h3>
-          {settlements.filter(s => s.toUser === userData?.uid && s.status === 'pending').map(req => (
-            <div key={req.id} className="glass-card border-orange-500/30 bg-orange-500/5 p-4 flex items-center justify-between">
-              <div className="text-sm">
-                 <span className="text-white font-semibold">{usersMap[req.fromUser]?.name || 'Someone'}</span> requested 
-                 <span className="text-orange-400 font-bold ml-1">₩{Math.round(req.amount).toLocaleString()}</span>
-              </div>
-              <div className="flex gap-2">
-                <button onClick={() => updateDoc(doc(db, 'settlements', req.id), { status: 'accepted' })} className="px-4 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 text-xs font-semibold transition-colors">Accept</button>
-                <button onClick={() => updateDoc(doc(db, 'settlements', req.id), { status: 'rejected' })} className="px-4 py-1.5 rounded-lg bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 text-xs font-semibold transition-colors">Reject</button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="glass-panel p-6 border-white/5 hover:border-white/10 transition-colors">
-          <div className="flex items-center gap-3 mb-2 text-white/40 uppercase tracking-widest text-[10px] font-bold">
-            <TrendingUp className="w-3 h-3 text-primary" />
-            <span>Personal Spent</span>
-          </div>
-          <div className="text-2xl font-bold text-white tracking-tight">₩{Math.round(totalSpent).toLocaleString()}</div>
-        </div>
-
-        <div className="glass-panel p-6 border-white/5 hover:border-white/10 transition-colors border-l-primary/30">
-          <div className="flex items-center gap-3 mb-2 text-white/40 uppercase tracking-widest text-[10px] font-bold">
-            <TrendingUp className="w-3 h-3 text-emerald-400" />
-            <span>To Receive</span>
-          </div>
-          <div className="text-2xl font-bold text-emerald-400 tracking-tight">₩{Math.round(totalReceive).toLocaleString()}</div>
-        </div>
-
-        <div className="glass-panel p-6 border-white/5 hover:border-white/10 transition-colors border-l-rose-500/30">
-           <div className="flex items-center gap-3 mb-2 text-white/40 uppercase tracking-widest text-[10px] font-bold">
-            <TrendingDown className="w-3 h-3 text-rose-400" />
-            <span>To Owe</span>
-          </div>
-          <div className="text-2xl font-bold text-rose-400 tracking-tight">₩{Math.round(totalOwe).toLocaleString()}</div>
-        </div>
-
-        <div className="glass-panel p-6 border-white/5 hover:border-white/10 transition-colors border-t-indigo-500/50">
-           <div className="flex items-center gap-3 mb-2 text-white/40 uppercase tracking-widest text-[10px] font-bold">
-            <LayoutGrid className="w-3 h-3 text-indigo-400" />
-            <span>Unified Wallet</span>
-          </div>
-          <div className="text-2xl font-black text-white tracking-tight italic">
-            ₩{Math.round((totalReceive - totalOwe) + personalBalance).toLocaleString()}
-          </div>
-          <p className="text-[9px] text-white/20 mt-1 uppercase font-bold tracking-widest">Group + Personal Trade</p>
-        </div>
-      </div>
-
-      {/* Smart Tip */}
-      {smartTip && (
-        <motion.div 
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="glass-panel p-4 bg-primary/5 border-primary/20 flex items-center justify-between"
-        >
-          <div className="flex items-center gap-3">
-             <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-               <Bell className="w-4 h-4 text-primary" />
              </div>
-             <p className="text-sm text-white/80">
-               Smart Tip: You should settle with <span className="text-white font-bold">{usersMap[smartTip.uid]?.name}</span> first to clear ₩{Math.round(smartTip.amount).toLocaleString()}.
-             </p>
-          </div>
-          <button 
-            onClick={() => {
-              setQuickSettleUser(smartTip.uid);
-              setSettleOpen(true);
-            }}
-            className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline"
-          >
-            Settle Now
-          </button>
-        </motion.div>
-      )}
+           )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-4">
-        {/* Balance Overview */}
-        <div className="glass-panel p-6 lg:col-span-2 shadow-2xl shadow-black/20">
-          <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
-              <Users className="w-5 h-5 text-primary" /> Member Balances
-          </h3>
-          
-          <div className="flex bg-white/5 border border-white/10 rounded-xl p-1 mb-6">
-            <button 
-               className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${balanceTab === 'receive' ? 'bg-primary text-white shadow-lg' : 'text-white/40 hover:text-white'}`}
-               onClick={() => setBalanceTab('receive')}
-            >
-              RECEIVE ({receiveList.length})
-            </button>
-            <button 
-               className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${balanceTab === 'owe' ? 'bg-white/10 text-white' : 'text-white/40 hover:text-white'}`}
-               onClick={() => setBalanceTab('owe')}
-            >
-              OWE ({oweList.length})
-            </button>
-          </div>
-
-          <div className="space-y-3">
-            {displayList.length === 0 && (
-              <div className="text-center text-white/20 py-12 text-sm">No active balances in this category.</div>
-            )}
-            {displayList.map(item => (
-              <div key={item.uid} className="hover:bg-white/5 border border-white/5 rounded-2xl transition-all p-4 flex items-center justify-between cursor-pointer group">
-                <div className="flex items-center gap-4">
-                  <div className="relative">
-                    {usersMap[item.uid]?.profileImage ? (
-                      <img src={usersMap[item.uid].profileImage} alt={usersMap[item.uid].name} className="w-12 h-12 rounded-full object-cover border-2 border-white/5 group-hover:border-primary transition-all" />
-                    ) : (
-                      <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center text-white/40">
-                        <UserIcon className="w-6 h-6" />
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <div className="text-white font-semibold text-sm">
-                      {usersMap[item.uid]?.name || "Unknown User"}
-                    </div>
-                    <div className="text-white/30 text-[10px] mt-0.5 tracking-wide">ROOM {usersMap[item.uid]?.room || "N/A"}</div>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className={`font-bold text-lg tracking-tight ${balanceTab === 'receive' ? 'text-emerald-400' : 'text-rose-400'}`}>
-                    ₩{Math.round(item.amount).toLocaleString()}
-                  </div>
-                  {balanceTab === 'owe' && (
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setQuickSettleUser(item.uid);
-                        setSettleOpen(true);
-                      }}
-                      className="mt-1 flex items-center gap-1.5 text-[9px] font-black text-rose-500/60 uppercase tracking-widest transition-all hover:text-rose-400"
-                    >
-                      <DollarSign className="w-3 h-3" /> Quick Settle
-                    </button>
-                  )}
-                </div>
+           <div className="glass-panel p-4 rounded-3xl border-info/10 flex items-center gap-4 bg-info/5">
+              <div className="w-12 h-12 rounded-2xl bg-info flex items-center justify-center shrink-0">
+                <LayoutGrid className="w-6 h-6 text-white" />
               </div>
-            ))}
-          </div>
+              <div>
+                 <div className="text-sm font-bold text-white leading-tight">Today's Meal Plan</div>
+                 <div className="text-[10px] text-white/40 uppercase font-black tracking-widest mt-0.5">Kimchi Stew, Rice, Side Dishes</div>
+              </div>
+           </div>
+
+           <div className="glass-panel p-4 rounded-3xl border-primary/10 flex items-center gap-4 bg-primary/5">
+              <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center shrink-0">
+                <Bell className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                 <div className="text-sm font-bold text-white leading-tight">Admin Notice</div>
+                 <div className="text-[10px] text-white/40 uppercase font-black tracking-widest mt-0.5">Monthly settlement due</div>
+              </div>
+           </div>
+        </div>
+      </section>
+
+      {/* 3. Metrics Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Metric 1 */}
+        <div className="glass-card rounded-[2.5rem] p-8 flex flex-col items-center text-center space-y-4 hover:border-info/30 transition-all group">
+            <div className="w-14 h-14 rounded-2xl bg-info/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <span className="text-info font-black text-xl italic leading-none">$</span>
+            </div>
+            <div className="space-y-1">
+              <div className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">Total You Spent</div>
+              <div className="text-3xl font-black text-white tracking-tighter italic">{formatPrice(totalSpent)}</div>
+            </div>
+            <div className="flex items-center gap-1 text-[10px] font-bold text-success">
+               <TrendingUp className="w-3 h-3" /> +12% from last month
+            </div>
         </div>
 
-        {/* Right column: Recent Activity */}
-        <div className="space-y-6">
-          <div className="glass-panel p-6 flex-1 min-h-[400px]">
-            <h3 className="text-sm font-bold text-white/40 mb-6 uppercase tracking-widest border-b border-white/5 pb-4">Activity Stream</h3>
-            {activityList.length === 0 ? (
-               <div className="text-center text-white/20 text-sm py-8">No recent activity.</div>
-            ) : (
-               <div className="space-y-6">
-                 {activityList.map((act, index) => (
-                   <div key={index} className="flex gap-4 group">
-                     <div className="relative mt-1 flex flex-col items-center">
-                       <div className={`w-2 h-2 rounded-full ${act.type === 'expense' ? 'bg-primary' : 'bg-orange-400'}`}></div>
-                       {index !== activityList.length - 1 && <div className="w-px h-full bg-white/5 my-2"></div>}
+        {/* Metric 2 */}
+        <div className="glass-card rounded-[2.5rem] p-8 flex flex-col items-center text-center space-y-4 hover:border-success/30 transition-all group">
+            <div className="w-14 h-14 rounded-2xl bg-success/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <TrendingUp className="w-6 h-6 text-success" />
+            </div>
+            <div className="space-y-1">
+              <div className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">You Will Receive</div>
+              <div className="text-3xl font-black text-success tracking-tighter italic">{formatPrice(totalReceive)}</div>
+            </div>
+            <div className="flex items-center gap-1 text-[10px] font-bold text-success">
+               <TrendingUp className="w-3 h-3" /> +5% from last month
+            </div>
+        </div>
+
+        {/* Metric 3 */}
+        <div className="glass-card rounded-[2.5rem] p-8 flex flex-col items-center text-center space-y-4 hover:border-destructive/30 transition-all group">
+            <div className="w-14 h-14 rounded-2xl bg-destructive/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <TrendingDown className="w-6 h-6 text-destructive" />
+            </div>
+            <div className="space-y-1">
+              <div className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">You Owe</div>
+              <div className="text-3xl font-black text-destructive tracking-tighter italic">{formatPrice(totalOwe)}</div>
+            </div>
+            <div className="flex items-center gap-1 text-[10px] font-bold text-destructive">
+               <TrendingDown className="w-3 h-3" /> -8% from last month
+            </div>
+        </div>
+
+        {/* Metric 4 */}
+        <div className="glass-card rounded-[2.5rem] p-8 flex flex-col items-center text-center space-y-4 hover:border-accent/30 transition-all group">
+            <div className="w-14 h-14 rounded-2xl bg-accent/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <Users className="w-6 h-6 text-accent" />
+            </div>
+            <div className="space-y-1">
+              <div className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">Total Group Expense</div>
+              <div className="text-3xl font-black text-white tracking-tighter italic">{formatPrice(groupSpent)}</div>
+            </div>
+            <div className="flex items-center gap-1 text-[10px] font-bold text-success">
+               <TrendingUp className="w-3 h-3" /> +15% from last month
+            </div>
+        </div>
+      </div>
+
+      {/* 4. Main Activity Area & Wallet */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Left: Recent Activity */}
+        <div className="lg:col-span-2 space-y-6">
+           <div className="flex items-center justify-between px-2">
+             <h2 className="text-2xl font-black text-white tracking-tight italic uppercase">Recent Activity</h2>
+             <button className="text-[10px] font-black text-primary hover:underline uppercase tracking-widest">View All</button>
+           </div>
+
+           <div className="glass-card rounded-[2.5rem] p-2 overflow-hidden">
+             {activityList.length === 0 ? (
+               <div className="text-center py-20 text-white/20 font-bold uppercase tracking-widest">No Recent Activity</div>
+             ) : (
+               <div className="divide-y divide-white/5">
+                 {activityList.map((act, i) => (
+                   <div key={i} className="flex items-center justify-between p-6 hover:bg-white/[0.02] transition-colors group">
+                     <div className="flex items-center gap-5">
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${
+                          act.type === 'expense' ? 'bg-info/20 text-info' : 'bg-success/20 text-success'
+                        }`}>
+                          {act.type === 'expense' ? <ShoppingCart className="w-6 h-6" /> : <ShieldCheck className="w-6 h-6" />}
+                        </div>
+                        <div>
+                          <div className="text-base font-bold text-white">
+                             {usersMap[act.type === 'expense' ? act.data.paidBy : act.data.fromUser]?.name || 'User'} {act.type === 'expense' ? 'added expense' : 'settled payment'}
+                          </div>
+                          <div className="text-[11px] text-white/40 font-medium mt-0.5">{formatPrice(act.data.amount)} • {act.type === 'expense' ? act.data.title : 'Settlement'}</div>
+                        </div>
                      </div>
-                     <div className="flex-1 pb-4 border-b border-white/2">
-                       {act.type === 'expense' ? (
-                          <>
-                             <p className="text-xs text-white/80 leading-relaxed">
-                                <span className="text-primary font-bold mr-1">{usersMap[act.data.paidBy]?.name || 'Someone'}</span>
-                                paid <span className="text-white font-bold">₩{Math.round(act.data.amount).toLocaleString()}</span>
-                                <span className="text-white/40 ml-1">for {act.data.title}</span>
-                             </p>
-                             <p className="text-[10px] text-white/20 mt-1 uppercase font-bold">{format(new Date(act.date), "MMM dd")} • EXPENSE</p>
-                          </>
-                       ) : (
-                          <>
-                             <p className="text-xs text-white/80 leading-relaxed">
-                                <span className="text-orange-400 font-bold mr-1">{usersMap[act.data.fromUser]?.name || 'Someone'}</span>
-                                {act.data.status === 'pending' ? 'requested' : act.data.status === 'accepted' ? 'settled' : 'rejected'}
-                                <span className="ml-1 text-white font-bold">₩{Math.round(act.data.amount).toLocaleString()}</span>
-                             </p>
-                             <p className="text-[10px] text-white/20 mt-1 uppercase font-bold">{format(new Date(act.date), "MMM dd")} • SETTLEMENT</p>
-                          </>
-                       )}
+                     <div className="flex items-center gap-4">
+                        <div className="text-right hidden sm:block">
+                           <div className="text-[10px] font-bold text-white uppercase opacity-40">{format(new Date(act.date), "h:mm a")}</div>
+                           <div className="text-[11px] font-black text-white/20 uppercase tracking-widest">{format(new Date(act.date), "MMM dd")}</div>
+                        </div>
+                        <div className="w-10 h-10 rounded-full border-2 border-white/10 bg-white/5 flex items-center justify-center text-[10px] font-black text-white group-hover:border-primary transition-colors">
+                           {usersMap[act.type === 'expense' ? act.data.paidBy : act.data.fromUser]?.name?.substring(0, 2).toUpperCase() || '??'}
+                        </div>
                      </div>
                    </div>
                  ))}
                </div>
-            )}
-            <button onClick={() => setPasswordOpen(true)} className="w-full mt-8 py-3 rounded-xl bg-white/5 border border-white/5 text-[10px] font-bold text-white/40 hover:bg-white/10 hover:text-white transition-all uppercase tracking-widest">
-              Security Settings
-            </button>
-          </div>
+             )}
+             <button className="w-full py-5 text-center text-xs font-black text-white/20 uppercase tracking-widest hover:text-white/60 transition-colors border-t border-white/5">
+                View All Activity
+             </button>
+           </div>
+        </div>
+
+        {/* Right: Unified Wallet */}
+        <div className="space-y-6">
+           <div className="flex items-center justify-between px-2">
+             <h2 className="text-2xl font-black text-white tracking-tight italic uppercase">Unified Wallet</h2>
+             <button className="px-3 py-1 bg-white/5 rounded-lg text-[9px] font-black text-white/40 uppercase tracking-widest">Combined Balance</button>
+           </div>
+
+           <div className="glass-card rounded-[3rem] p-3 space-y-3">
+              {/* Group Balance */}
+              <div className="glass-panel p-6 rounded-[2rem] border-white/5">
+                 <div className="flex items-center justify-between mb-4">
+                    <span className="text-[10px] font-black text-white/30 uppercase tracking-widest">Group Balance</span>
+                    <span className="text-[10px] font-black text-success uppercase">You will receive</span>
+                 </div>
+                 <div className="text-3xl font-black text-white tracking-tighter italic">{formatPrice(totalReceive - totalOwe)}</div>
+                 <div className="text-[10px] font-bold text-success/60 mt-2">Overall positive from group members</div>
+              </div>
+
+              {/* Personal Balance */}
+              <div className="glass-panel p-6 rounded-[2rem] border-white/5">
+                 <div className="flex items-center justify-between mb-4">
+                    <span className="text-[10px] font-black text-white/30 uppercase tracking-widest">Personal Balance</span>
+                    <span className="text-[10px] font-black text-destructive uppercase">You owe</span>
+                 </div>
+                 <div className="text-3xl font-black text-white tracking-tighter italic">{formatPrice(personalBalance)}</div>
+                 <div className="text-[10px] font-bold text-destructive/60 mt-2">Active personal trades pending</div>
+              </div>
+
+              {/* Net Balance */}
+              <div className="glass-panel p-8 rounded-[2.5rem] border-primary/20 bg-primary/5">
+                 <div className="flex items-center justify-between mb-4">
+                    <span className="text-xs font-black text-white/40 uppercase tracking-widest">Net Balance</span>
+                    <div className="w-2 h-2 rounded-full bg-success"></div>
+                 </div>
+                 <div className="text-4xl font-black text-success tracking-tighter italic">
+                    {((totalReceive - totalOwe) + personalBalance) >= 0 ? '+' : '-'}{formatPrice(Math.abs((totalReceive - totalOwe) + personalBalance))}
+                 </div>
+                 <div className="text-xs font-bold text-white/40 mt-3 uppercase tracking-tighter">Overall positive performance</div>
+              </div>
+           </div>
         </div>
       </div>
-      
+
       <AddExpenseModal isOpen={isExpenseOpen} onClose={() => setExpenseOpen(false)} />
       <SettlePaymentModal 
         isOpen={isSettleOpen} 
@@ -622,4 +493,5 @@ export default function DashboardPage() {
       />
     </div>
   );
+
 }

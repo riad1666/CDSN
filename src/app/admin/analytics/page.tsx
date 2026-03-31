@@ -16,10 +16,12 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
 } from "recharts";
 import { subscribeToGlobalAnalytics, subscribeToSystemStats } from "@/lib/firebase/firestore";
+import { useCurrency } from "@/context/CurrencyContext";
 
 const COLORS = ['#3b82f6', '#9333ea', '#10b981', '#f59e0b', '#ef4444', '#ec4899'];
 
 export default function AnalyticsHub() {
+  const { formatPrice } = useCurrency();
   const [stats, setStats] = useState<any>(null);
   const [analytics, setAnalytics] = useState<any>(null);
 
@@ -33,10 +35,10 @@ export default function AnalyticsHub() {
   }, []);
 
   const metricCards = [
-    { label: "Total Spending", value: `₩${(stats?.totalExpenses || 0).toLocaleString()}`, sub: "March 2024", color: "bg-blue-500", icon: DollarSign },
+    { label: "Total Spending", value: formatPrice(stats?.totalExpenses || 0), sub: "March 2024", color: "bg-blue-500", icon: DollarSign },
     { label: "Total Expenses", value: stats?.totalGroups * 4 || 24, sub: "This month", color: "bg-purple-500", icon: Layers },
     { label: "Active Users", value: stats?.activeUsers24h || 5, sub: "Contributing members", color: "bg-green-500", icon: Users },
-    { label: "Avg per Person", value: `₩${Math.round((stats?.totalExpenses || 0) / 5).toLocaleString()}`, sub: "This month", color: "bg-orange-500", icon: CreditCard },
+    { label: "Avg per Person", value: formatPrice((stats?.totalExpenses || 0) / 5), sub: "This month", color: "bg-orange-500", icon: CreditCard },
   ];
 
   const topSpenders = [
@@ -150,7 +152,7 @@ export default function AnalyticsHub() {
                             <span className="text-xs font-black text-black/80 group-hover:text-blue-500 transition-colors uppercase italic">{spender.name}</span>
                         </div>
                         <div className="flex items-center gap-6">
-                            <span className="text-xs font-black text-black">₩{spender.amount.toLocaleString()}</span>
+                            <span className="text-xs font-black text-black">{formatPrice(spender.amount)}</span>
                             <span className="text-[10px] font-black text-black/20 italic">{spender.percentage}%</span>
                         </div>
                     </div>

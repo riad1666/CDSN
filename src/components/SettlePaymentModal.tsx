@@ -8,9 +8,11 @@ import { collection, addDoc } from "firebase/firestore";
 import { UserBasicInfo, getGroupMembers, writeNotification } from "@/lib/firebase/firestore";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
+import { useCurrency } from "@/context/CurrencyContext";
 
 export function SettlePaymentModal({ isOpen, onClose, targetUserId }: { isOpen: boolean, onClose: () => void, targetUserId?: string }) {
   const { userData } = useAuth();
+  const { formatPrice } = useCurrency();
   const [users, setUsers] = useState<UserBasicInfo[]>([]);
   const [toUser, setToUser] = useState("");
   const [amount, setAmount] = useState("");
@@ -58,7 +60,7 @@ export function SettlePaymentModal({ isOpen, onClose, targetUserId }: { isOpen: 
       await writeNotification(
         toUser,
         "SETTLEMENT_REQUEST",
-        `${userData!.name} requested a settlement of ₩${parseFloat(amount).toLocaleString()}.`,
+        `${userData!.name} requested a settlement of ${formatPrice(parseFloat(amount))}.`,
         { groupId: userData.currentGroupId, amount: parseFloat(amount) }
       );
 
@@ -126,7 +128,7 @@ export function SettlePaymentModal({ isOpen, onClose, targetUserId }: { isOpen: 
           </div>
           
           <div className="space-y-1.5">
-            <label className="text-[10px] font-black text-white/40 uppercase tracking-widest ml-1">Amount (₩)</label>
+            <label className="text-[10px] font-black text-white/40 uppercase tracking-widest ml-1">Amount</label>
             <input 
               type="number" 
               placeholder="0" 

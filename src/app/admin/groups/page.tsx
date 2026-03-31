@@ -17,8 +17,10 @@ import {
 } from "lucide-react";
 import { getAllGroups } from "@/lib/firebase/firestore";
 import toast from "react-hot-toast";
+import { useCurrency } from "@/context/CurrencyContext";
 
 export default function GroupManagementPage() {
+  const { formatPrice } = useCurrency();
   const [groups, setGroups] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<"card" | "table">("table");
@@ -129,7 +131,7 @@ export default function GroupManagementPage() {
                                     <span className="text-[10px] font-black text-purple-400 bg-purple-400/10 px-3 py-1.5 rounded-full border border-purple-400/20 italic">{group.memberIds?.length || 0} members</span>
                                 </td>
                                 <td className="px-8 py-5">
-                                    <p className="text-white font-black text-xs">₩{(group.totalExpense || 0).toLocaleString()}</p>
+                                    <p className="text-white font-black text-xs">{formatPrice(group.totalExpense || 0)}</p>
                                 </td>
                                 <td className="px-8 py-5">
                                     <div className="flex items-center gap-2 text-white/30 text-[9px] font-black uppercase tracking-widest italic">
@@ -179,7 +181,7 @@ export default function GroupManagementPage() {
                                 <DollarSign className="w-4 h-4 text-purple-500" />
                                 <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Expenses</span>
                             </div>
-                            <span className="text-xs font-black text-white">₩{(group.totalExpense || 0).toLocaleString()}</span>
+                            <span className="text-xs font-black text-white">{formatPrice(group.totalExpense || 0)}</span>
                         </div>
                         <div className="flex items-center justify-between p-4 bg-white/3 rounded-2xl border border-white/5">
                             <div className="flex items-center gap-3">

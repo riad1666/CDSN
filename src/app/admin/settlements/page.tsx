@@ -7,8 +7,10 @@ import { format } from "date-fns";
 import { Check, X, Eye, Trash2 } from "lucide-react";
 import { getApprovedUsers, UserBasicInfo, Settlement } from "@/lib/firebase/firestore";
 import toast from "react-hot-toast";
+import { useCurrency } from "@/context/CurrencyContext";
 
 export default function AdminSettlementsPage() {
+  const { formatPrice } = useCurrency();
   const [settlements, setSettlements] = useState<Settlement[]>([]);
   const [usersMap, setUsersMap] = useState<Record<string, UserBasicInfo>>({});
 
@@ -72,7 +74,7 @@ export default function AdminSettlementsPage() {
                  <span className="mx-1">→</span>
                  <span className="font-semibold text-white">{usersMap[s.toUser]?.name || "Unknown"}</span>
                </div>
-               <div className="text-2xl font-bold text-white mb-2">₩{Math.round(s.amount).toLocaleString()}</div>
+               <div className="text-2xl font-bold text-white mb-2">{formatPrice(s.amount)}</div>
                <div className="text-xs text-white/40">
                  Date: {s.date ? format(new Date(s.date), "yyyy-MM-dd") : "N/A"}
                </div>
