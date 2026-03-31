@@ -5,17 +5,26 @@ import { X, Loader2, Calendar as CalendarIcon, ChefHat } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase/config";
 import { collection, addDoc, query, where, getDocs } from "firebase/firestore";
-import { UserBasicInfo, getGroupMembers, writeNotification, writeGroupActivity } from "@/lib/firebase/firestore";
+import { UserBasicInfo, getGroupMembers, writeNotification, writeGroupActivity, updateCookingSchedule } from "@/lib/firebase/firestore";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
+
+interface CookingSchedule {
+  id: string;
+  date: string;
+  assignedUser: string;
+  groupId: string;
+  meal?: string;
+}
 
 interface AssignCookingModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialDate?: string;
+  editSchedule?: CookingSchedule | null;
 }
 
-export function AssignCookingModal({ isOpen, onClose, initialDate }: AssignCookingModalProps) {
+export function AssignCookingModal({ isOpen, onClose, initialDate, editSchedule }: AssignCookingModalProps) {
   const { userData } = useAuth();
   const [users, setUsers] = useState<UserBasicInfo[]>([]);
   const [assignedUser, setAssignedUser] = useState("");
@@ -24,8 +33,16 @@ export function AssignCookingModal({ isOpen, onClose, initialDate }: AssignCooki
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (initialDate) setDate(initialDate);
-  }, [initialDate]);
+    if (editSchedule) {
+      setAssignedUser(editSchedule.assignedUser);
+      setMeal(editSchedule.meal || "");
+      setDate(editSchedule.date);
+    } else {
+      setAssignedUser("");
+      setMeal("");
+      setDate(initialDate || new Date().toISOString().split('T')[0]);
+    }
+  }, [editSchedule, initialDate, isOpen]);
 
   useEffect(() => {
     if (isOpen && userData?.currentGroupId) {
@@ -43,50 +60,60 @@ export function AssignCookingModal({ isOpen, onClose, initialDate }: AssignCooki
     try {
       if (!userData?.currentGroupId) throw new Error("No group selected.");
 
-      // Check if someone is already assigned for this date
-      const existing = await getDocs(query(
-        collection(db, "cookingSchedules"),
-        where("groupId", "==", userData.currentGroupId),
-        where("date", "==", date),
-        where("isDeleted", "==", false)
-      ));
-      
-      if (!existing.empty) {
-        throw new Error("Someone is already assigned for this date.");
-      }
+      // If not editing, check if someone is already assigned for this date
+      if (!editSchedule) {
+        const existing = await getDocs(query(
+          collection(db, "cookingSchedules"),
+          where("groupId", "==", userData.currentGroupId),
+          where("date", "==", date),
+          where("isDeleted", "==", false)
+        ));
+        
+        if (!existing.empty) {
+          throw new Error("Someone is already assigned for this date.");
+        }
 
-      await addDoc(collection(db, "cookingSchedules"), {
-        assignedUser,
-        date,
-        meal,
-        groupId: userData.currentGroupId,
-        assignedBy: userData.uid,
-        createdAt: new Date().toISOString(),
-        isDeleted: false
-      });
+        await addDoc(collection(db, "cookingSchedules"), {
+          assignedUser,
+          date,
+          meal,
+          groupId: userData.currentGroupId,
+          assignedBy: userData.uid,
+          createdAt: new Date().toISOString(),
+          isDeleted: false
+        });
+      } else {
+        await updateCookingSchedule(editSchedule.id, {
+          assignedUser,
+          date,
+          meal,
+        });
+      }
 
       const targetUser = users.find(u => u.uid === assignedUser);
       
       // Log activity
       await writeGroupActivity(
         userData.currentGroupId,
-        "cooking_assigned",
-        `${userData.name} assigned cooking duty to ${targetUser?.name || 'someone'} for ${date}`,
+        editSchedule ? "cooking_updated" : "cooking_assigned",
+        `${userData.name} ${editSchedule ? 'updated' : 'assigned'} cooking duty for ${date}`,
         userData.uid
       );
 
       // Notify user
-      await writeNotification(
-        assignedUser,
-        "NOTICE_ADDED", // Reusing this for general duties
-        `You have been assigned cooking duty for ${date} by ${userData.name}.`,
-        { groupId: userData.currentGroupId, date }
-      );
+      if (assignedUser !== userData.uid) {
+        await writeNotification(
+          assignedUser,
+          "NOTICE_ADDED",
+          `Cooking duty for ${date} has been ${editSchedule ? 'updated' : 'assigned to you'} by ${userData.name}.`,
+          { groupId: userData.currentGroupId, date }
+        );
+      }
 
-      toast.success("Cooking duty assigned!");
+      toast.success(editSchedule ? "Duty updated!" : "Cooking duty assigned!");
       onClose();
     } catch(err: any) {
-      toast.error(err.message || "Failed to assign duty");
+      toast.error(err.message || "Failed to process request");
     } finally {
       setLoading(false);
     }
@@ -108,7 +135,7 @@ export function AssignCookingModal({ isOpen, onClose, initialDate }: AssignCooki
             <ChefHat className="w-6 h-6 text-orange-400" />
           </div>
           <div>
-            <h3 className="text-xl font-black text-white tracking-tighter uppercase italic">Assign Duty</h3>
+            <h3 className="text-xl font-black text-white tracking-tighter uppercase italic">{editSchedule ? "Edit Duty" : "Assign Duty"}</h3>
             <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Cooking Schedule Management</p>
           </div>
         </div>
@@ -153,7 +180,7 @@ export function AssignCookingModal({ isOpen, onClose, initialDate }: AssignCooki
           </div>
           
           <button type="submit" disabled={loading} className="w-full py-3.5 rounded-xl bg-orange-500 text-white font-black text-xs uppercase tracking-widest hover:bg-orange-600 transition-all shadow-lg shadow-orange-500/20 disabled:opacity-50 flex items-center justify-center">
-            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Confirm Assignment"}
+            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (editSchedule ? "Update Duty" : "Confirm Assignment")}
           </button>
         </form>
       </motion.div>

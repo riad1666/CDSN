@@ -57,8 +57,8 @@ export const Sidebar = () => {
               exit={{ opacity: 0, x: -10 }}
               className="flex flex-col whitespace-nowrap"
             >
-              <h1 className="text-xl font-black italic tracking-tighter text-white leading-none">CDSN</h1>
-              <p className="text-[10px] font-black tracking-[0.2em] text-white/20">NETWORK v2.4</p>
+              <h1 className="text-xl font-black italic tracking-tighter text-white leading-none">CDS</h1>
+              <p className="text-[8px] font-black tracking-[0.2em] text-white/20 uppercase">Convergence Digital Society</p>
             </motion.div>
           )}
         </AnimatePresence>

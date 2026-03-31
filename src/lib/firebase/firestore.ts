@@ -388,6 +388,10 @@ export async function deleteCookingSchedule(id: string): Promise<void> {
     await updateDoc(doc(db, "cookingSchedules", id), { isDeleted: true });
 }
 
+export async function updateCookingSchedule(id: string, data: any): Promise<void> {
+    await updateDoc(doc(db, "cookingSchedules", id), data);
+}
+
 export async function updateGroupCoverPhoto(groupId: string, base64: string): Promise<void> {
     await updateDoc(doc(db, "groups", groupId), { coverImage: base64 });
 }

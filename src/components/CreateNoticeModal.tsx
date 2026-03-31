@@ -1,22 +1,36 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { X, Bell, Info, AlertTriangle, Loader2 } from "lucide-react";
-import { collection, addDoc } from "firebase/firestore";
+import { collection, addDoc, doc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import toast from "react-hot-toast";
+import { Notice } from "@/lib/firebase/firestore";
 
 interface CreateNoticeModalProps {
   isOpen: boolean;
   onClose: () => void;
   groupId: string;
+  noticeToEdit?: Notice | null;
 }
 
-export function CreateNoticeModal({ isOpen, onClose, groupId }: CreateNoticeModalProps) {
+export function CreateNoticeModal({ isOpen, onClose, groupId, noticeToEdit }: CreateNoticeModalProps) {
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
   const [type, setType] = useState<"INFO" | "IMPORTANT" | "WARNING">("INFO");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (noticeToEdit) {
+      setTitle(noticeToEdit.title);
+      setMessage(noticeToEdit.message);
+      setType(noticeToEdit.type);
+    } else {
+      setTitle("");
+      setMessage("");
+      setType("INFO");
+    }
+  }, [noticeToEdit, isOpen]);
 
   if (!isOpen) return null;
 
@@ -26,20 +40,28 @@ export function CreateNoticeModal({ isOpen, onClose, groupId }: CreateNoticeModa
 
     setLoading(true);
     try {
-      await addDoc(collection(db, "notices"), {
-        groupId,
-        title,
-        message,
-        type,
-        createdAt: new Date().toISOString(),
-        isDeleted: false
-      });
-      toast.success("Notice posted successfully!");
-      setTitle("");
-      setMessage("");
+      if (noticeToEdit) {
+        await updateDoc(doc(db, "notices", noticeToEdit.id), {
+          title,
+          message,
+          type,
+          updatedAt: new Date().toISOString()
+        });
+        toast.success("Notice updated successfully!");
+      } else {
+        await addDoc(collection(db, "notices"), {
+          groupId,
+          title,
+          message,
+          type,
+          createdAt: new Date().toISOString(),
+          isDeleted: false
+        });
+        toast.success("Notice posted successfully!");
+      }
       onClose();
     } catch (error) {
-      toast.error("Failed to post notice");
+      toast.error(noticeToEdit ? "Failed to update notice" : "Failed to post notice");
     } finally {
       setLoading(false);
     }
@@ -59,7 +81,7 @@ export function CreateNoticeModal({ isOpen, onClose, groupId }: CreateNoticeModa
                 <Bell className="w-6 h-6 text-primary" />
             </div>
             <div>
-                <h2 className="text-2xl font-black text-white tracking-tighter uppercase italic">Create Notice</h2>
+                <h2 className="text-2xl font-black text-white tracking-tighter uppercase italic">{noticeToEdit ? "Edit Notice" : "Create Notice"}</h2>
                 <p className="text-[10px] text-white/40 font-bold uppercase tracking-[0.2em]">Post an update to the group</p>
             </div>
         </div>
@@ -119,7 +141,7 @@ export function CreateNoticeModal({ isOpen, onClose, groupId }: CreateNoticeModa
             disabled={loading}
             className="w-full glass-button py-4 text-xs font-black uppercase tracking-widest"
           >
-            {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto text-white" /> : "Post Notice"}
+            {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto text-white" /> : (noticeToEdit ? "Update Notice" : "Post Notice")}
           </button>
         </form>
       </div>

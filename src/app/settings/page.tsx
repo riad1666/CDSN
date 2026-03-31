@@ -2,18 +2,20 @@
 
 import { useAuth } from "@/context/AuthContext";
 import { useState, useRef } from "react";
-import { User, Lock, Camera, Loader2, ArrowLeft, Shield, Eye, EyeOff, Globe, Coins } from "lucide-react";
+import { User, Lock, Camera, Loader2, ArrowLeft, Shield, Eye, EyeOff, Globe, Coins, LogOut } from "lucide-react";
 import { useCurrency, Currency } from "@/context/CurrencyContext";
 import { updateUserProfileImage, updateUserGender } from "@/lib/firebase/firestore";
 import { ChangePasswordModal } from "@/components/ChangePasswordModal";
-import { resendVerificationEmail, updateUserEmail } from "@/lib/firebase/auth";
+import { resendVerificationEmail, updateUserEmail, logoutUser } from "@/lib/firebase/auth";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
 
 export default function SettingsPage() {
   const { userData, user } = useAuth();
   const { currency, setCurrency } = useCurrency();
+  const router = useRouter();
   const [isPasswordOpen, setIsPasswordOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isResending, setIsResending] = useState(false);
@@ -285,6 +287,22 @@ export default function SettingsPage() {
                             className="px-8 py-4 bg-indigo-500/10 hover:bg-indigo-500 text-indigo-400 hover:text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] border border-indigo-500/20 transition-all shadow-xl flex items-center gap-3 shrink-0"
                         >
                             <Lock className="w-4 h-4" /> Rotate Cipher
+                        </button>
+                    </div>
+
+                    <div className="flex flex-col md:flex-row items-center justify-between gap-8 p-8 rounded-[2.5rem] bg-rose-500/5 border border-rose-500/10 group hover:border-rose-500/20 transition-all">
+                        <div className="space-y-1">
+                            <h4 className="text-rose-500 font-black text-sm uppercase tracking-tight italic">Terminate Session</h4>
+                            <p className="text-[10px] text-white/30 font-bold uppercase tracking-widest leading-relaxed">Disconnect all local signals and return to the login interface.</p>
+                        </div>
+                        <button 
+                            onClick={async () => {
+                                await logoutUser();
+                                router.push("/login");
+                            }}
+                            className="px-8 py-4 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] border border-rose-500/20 transition-all shadow-xl flex items-center gap-3 shrink-0"
+                        >
+                            <LogOut className="w-4 h-4" /> Log Out
                         </button>
                     </div>
                 </div>

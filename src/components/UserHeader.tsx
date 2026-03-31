@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Menu, X, Search, Loader2, Bell, ChevronDown } from "lucide-react";
+import { Menu, X, Search, Loader2, Bell, ChevronDown, LogOut } from "lucide-react";
 import PWAInstallPrompt from "./PWAInstallPrompt";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
@@ -17,6 +17,7 @@ export function UserHeader() {
   const [isSearching, setIsSearching] = useState(false);
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [inviteUser, setInviteUser] = useState<UserBasicInfo | null>(null);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
 
   // Live search with debounce
   useEffect(() => {
@@ -111,21 +112,55 @@ export function UserHeader() {
         </button>
 
 
-        <div className="flex items-center gap-3 pl-4 border-l border-white/10 group cursor-pointer">
-           <div className="text-right hidden sm:block">
-              <div className="text-sm font-bold text-white tracking-tight leading-none mb-1">{userData?.name || "User Name"}</div>
-              <div className="text-[10px] text-white/30 font-medium leading-none flex items-center justify-end gap-1">
-                 Live Status <div className="w-1.5 h-1.5 rounded-full bg-success"></div>
-              </div>
-           </div>
-           <div className="relative">
-              {userData?.profileImage ? (
-                 <img src={userData.profileImage} className="w-10 h-10 rounded-2xl border border-white/20 object-cover group-hover:border-primary transition-colors" />
-              ) : (
-                 <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 border border-white/10 flex items-center justify-center text-primary font-black uppercase">{userData?.name?.charAt(0) || "U"}</div>
-              )}
-           </div>
-           <ChevronDown className="w-4 h-4 text-white/20 group-hover:text-white transition-colors hidden md:block" />
+        <div className="relative">
+          <div 
+            onClick={() => setShowProfileMenu(!showProfileMenu)}
+            className="flex items-center gap-3 pl-4 border-l border-white/10 group cursor-pointer active:scale-95 transition-transform"
+          >
+             <div className="text-right hidden sm:block">
+                <div className="text-sm font-bold text-white tracking-tight leading-none mb-1">{userData?.name || "User Name"}</div>
+                <div className="text-[10px] text-white/30 font-medium leading-none flex items-center justify-end gap-1">
+                   Live Status <div className="w-1.5 h-1.5 rounded-full bg-success"></div>
+                </div>
+             </div>
+             <div className="relative">
+                {userData?.profileImage ? (
+                   <img src={userData.profileImage} className="w-10 h-10 rounded-2xl border border-white/20 object-cover group-hover:border-primary transition-colors" />
+                ) : (
+                   <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 border border-white/10 flex items-center justify-center text-primary font-black uppercase">{userData?.name?.charAt(0) || "U"}</div>
+                )}
+             </div>
+             <ChevronDown className={`w-4 h-4 text-white/20 group-hover:text-white transition-all hidden md:block ${showProfileMenu ? 'rotate-180' : ''}`} />
+          </div>
+
+          <AnimatePresence>
+            {showProfileMenu && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                className="absolute top-full right-0 mt-4 w-52 glass-panel p-2 shadow-2xl z-50 border border-white/10 overflow-hidden"
+              >
+                <button 
+                  onClick={() => { router.push("/settings"); setShowProfileMenu(false); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold text-white/60 hover:text-white hover:bg-white/5 transition-all text-left"
+                >
+                  <Menu className="w-4 h-4" /> Profile Details
+                </button>
+                <div className="h-px bg-white/5 my-2 mx-2"></div>
+                <button 
+                  onClick={async () => { 
+                    const { logoutUser } = await import("@/lib/firebase/auth");
+                    await logoutUser(); 
+                    router.push("/login"); 
+                  }} 
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold text-rose-500/60 hover:text-rose-500 hover:bg-rose-500/10 transition-all text-left"
+                >
+                  <LogOut className="w-4 h-4" /> Terminate Session
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 

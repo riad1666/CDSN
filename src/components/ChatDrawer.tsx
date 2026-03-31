@@ -182,7 +182,7 @@ export function ChatDrawer({ isOpen, onClose, chatId, chatName, type }: ChatDraw
             </button>
           </form>
           <p className="text-[8px] text-white/20 mt-2 text-center uppercase tracking-[0.2em] font-black">
-            End-to-end Encrypted by CDSN
+            End-to-end Encrypted by CDS
           </p>
         </div>
       </motion.div>

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { Bell, TrendingUp, TrendingDown, DollarSign, User as UserIcon, Plus, Lock, ChefHat, LayoutGrid, Users, Loader2, Camera, Trash2, X, PlusCircle, ShoppingCart, ShieldCheck } from "lucide-react";
+import { Bell, TrendingUp, TrendingDown, DollarSign, User as UserIcon, Plus, Lock, ChefHat, LayoutGrid, Users, Loader2, Camera, Trash2, X, PlusCircle, ShoppingCart, ShieldCheck, Pencil, AlertTriangle } from "lucide-react";
 import { subscribeToNotices, subscribeToExpenses, subscribeToSettlements, getApprovedUsers, Notice, Expense, Settlement, UserBasicInfo, Group, subscribeToUserGroups, updateGroupCoverPhoto, subscribeToAllUnread } from "@/lib/firebase/firestore";
 import { format } from "date-fns";
 import Link from "next/link";
@@ -40,6 +40,7 @@ export default function DashboardPage() {
   const [isUpdatingCover, setIsUpdatingCover] = useState(false);
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
   const [isNoticeOpen, setNoticeOpen] = useState(false);
+  const [noticeToEdit, setNoticeToEdit] = useState<Notice | null>(null);
   const [isCreateOpen, setCreateOpen] = useState(false);
   const [isJoinOpen, setJoinOpen] = useState(false);
   const [isChatOpen, setChatOpen] = useState(false);
@@ -283,40 +284,60 @@ export default function DashboardPage() {
              <Bell className="w-5 h-5 text-warning" />
            </div>
            <h2 className="text-xl font-black text-white tracking-tight uppercase">Notice Board</h2>
+           {isAdmin && (
+             <button 
+               onClick={() => { setNoticeToEdit(null); setNoticeOpen(true); }}
+               className="p-2 bg-white/5 rounded-xl text-white/40 hover:text-white transition-all ml-auto flex items-center gap-2 group"
+             >
+                <Plus className="w-4 h-4" />
+                <span className="text-[10px] font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">Add Notice</span>
+             </button>
+           )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-           {cookingDate && (
-             <div className="glass-panel p-4 rounded-3xl border-warning/10 flex items-center gap-4 bg-warning/5">
-                <div className="w-12 h-12 rounded-2xl bg-warning flex items-center justify-center shrink-0">
-                  <ChefHat className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                   <div className="text-sm font-bold text-white leading-tight">Cooking Duty Today</div>
-                   <div className="text-[10px] text-white/40 uppercase font-black tracking-widest mt-0.5">6:00 PM • {cookingDate}</div>
-                </div>
+           {notices.filter(n => !n.isDeleted).length === 0 ? (
+             <div className="col-span-full py-12 flex flex-col items-center justify-center text-center space-y-3 glass-panel rounded-3xl border-white/5">
+                <Bell className="w-8 h-8 text-white/10" />
+                <p className="text-[10px] font-black text-white/20 uppercase tracking-widest italic">No active notices for this group</p>
              </div>
+           ) : (
+             notices.filter(n => !n.isDeleted).slice(0, 3).map(notice => {
+               const theme = getNoticeTheme(notice.type);
+               const Icon = notice.type === 'WARNING' ? AlertTriangle : notice.type === 'IMPORTANT' ? Bell : Bell;
+               return (
+                 <div key={notice.id} className={`glass-panel p-5 rounded-[2rem] border ${theme.border} flex flex-col gap-4 ${theme.bg} relative group/notice transition-all hover:scale-[1.02]`}>
+                    <div className="flex items-center gap-4">
+                       <div className={`w-12 h-12 rounded-2xl ${theme.tag} flex items-center justify-center shrink-0 shadow-lg shadow-black/20`}>
+                         <Icon className="w-6 h-6 text-white" />
+                       </div>
+                       <div className="flex-1 pr-12">
+                          <div className="text-sm font-black text-white leading-tight uppercase italic tracking-tight truncate">{notice.title}</div>
+                          <div className="text-[10px] text-white/40 uppercase font-black tracking-widest mt-0.5">{format(new Date(notice.createdAt), "MMM dd, yyyy")}</div>
+                       </div>
+                    </div>
+                    <p className="text-xs text-white/60 line-clamp-3 px-1 leading-relaxed">{notice.message}</p>
+                    
+                    {isAdmin && (
+                      <div className="absolute top-5 right-5 flex items-center gap-1.5 opacity-0 group-hover/notice:opacity-100 transition-all">
+                         <button 
+                           onClick={() => { setNoticeToEdit(notice); setNoticeOpen(true); }}
+                           className="p-2.5 bg-white/10 backdrop-blur-md rounded-xl text-white/60 hover:text-white hover:bg-white/20 transition-all border border-white/5"
+                         >
+                            <Pencil className="w-3.5 h-3.5" />
+                         </button>
+                         <button 
+                           onClick={() => handleDeleteNotice(notice.id)}
+                           className="p-2.5 bg-rose-500/10 backdrop-blur-md rounded-xl text-rose-400 hover:text-white hover:bg-rose-500 transition-all border border-rose-500/20"
+                         >
+                            <Trash2 className="w-3.5 h-3.5" />
+                         </button>
+                      </div>
+                    )}
+                 </div>
+               )
+             })
            )}
-
-           <div className="glass-panel p-4 rounded-3xl border-info/10 flex items-center gap-4 bg-info/5">
-              <div className="w-12 h-12 rounded-2xl bg-info flex items-center justify-center shrink-0">
-                <LayoutGrid className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                 <div className="text-sm font-bold text-white leading-tight">Today's Meal Plan</div>
-                 <div className="text-[10px] text-white/40 uppercase font-black tracking-widest mt-0.5">Kimchi Stew, Rice, Side Dishes</div>
-              </div>
-           </div>
-
-           <div className="glass-panel p-4 rounded-3xl border-primary/10 flex items-center gap-4 bg-primary/5">
-              <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center shrink-0">
-                <Bell className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                 <div className="text-sm font-bold text-white leading-tight">Admin Notice</div>
-                 <div className="text-[10px] text-white/40 uppercase font-black tracking-widest mt-0.5">Monthly settlement due</div>
-              </div>
-           </div>
         </div>
       </section>
 
@@ -480,8 +501,9 @@ export default function DashboardPage() {
       
       <CreateNoticeModal 
         isOpen={isNoticeOpen} 
-        onClose={() => setNoticeOpen(false)} 
+        onClose={() => { setNoticeOpen(false); setNoticeToEdit(null); }} 
         groupId={userData.currentGroupId!} 
+        noticeToEdit={noticeToEdit}
       />
 
       <ChatDrawer 

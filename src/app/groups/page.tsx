@@ -368,13 +368,48 @@ export default function GroupProfilePage() {
                                 {mRole}
                              </div>
                              {canManage && (
-                               <div className="flex items-center gap-2 role-dropdown-container">
+                               <div className="flex items-center gap-2 role-dropdown-container relative">
                                   <button 
                                     onClick={() => setRoleDropdownOpen(prev => prev === member.uid ? null : member.uid)}
                                     className="p-3 bg-white/5 rounded-xl text-white/40 hover:text-white transition-all"
                                   >
                                      <ChevronDown className={`w-4 h-4 transition-transform ${roleDropdownOpen === member.uid ? 'rotate-180' : ''}`} />
                                   </button>
+
+                                  <AnimatePresence>
+                                    {roleDropdownOpen === member.uid && (
+                                      <motion.div 
+                                        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                                        exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                                        className="absolute right-0 top-full mt-2 w-48 glass-card border border-white/10 rounded-2xl p-2 z-50 shadow-2xl flex flex-col gap-1 overflow-hidden"
+                                      >
+                                         <div className="px-4 py-2 border-b border-white/5 mb-1">
+                                            <span className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em]">Change Role</span>
+                                         </div>
+                                         <button 
+                                           onClick={() => handleChangeRole(member.uid, "admin")}
+                                           className={`w-full text-left px-4 py-3 rounded-xl transition-all flex items-center gap-3 group/item ${mRole === 'admin' ? 'bg-primary/20 text-primary' : 'hover:bg-white/5 text-white/60 hover:text-white'}`}
+                                         >
+                                            <Shield className={`w-4 h-4 ${mRole === 'admin' ? 'text-primary' : 'text-primary/40'}`} />
+                                            <span className="text-xs font-black uppercase tracking-widest">Admin</span>
+                                         </button>
+                                         <button 
+                                           onClick={() => handleChangeRole(member.uid, "member")}
+                                           className={`w-full text-left px-4 py-3 rounded-xl transition-all flex items-center gap-3 group/item ${mRole === 'member' ? 'bg-white/10 text-white' : 'hover:bg-white/5 text-white/60 hover:text-white'}`}
+                                         >
+                                            <Users className={`w-4 h-4 ${mRole === 'member' ? 'text-white' : 'text-white/20'}`} />
+                                            <span className="text-xs font-black uppercase tracking-widest">Member</span>
+                                         </button>
+                                         {updatingRole === member.uid && (
+                                           <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center rounded-2xl">
+                                             <Loader2 className="w-5 h-5 text-primary animate-spin" />
+                                           </div>
+                                         )}
+                                      </motion.div>
+                                    )}
+                                  </AnimatePresence>
+
                                   <button onClick={() => handleKick(member.uid)} className="p-3 bg-destructive/10 rounded-xl text-destructive hover:bg-destructive hover:text-white transition-all">
                                      <UserMinus className="w-4 h-4" />
                                   </button>

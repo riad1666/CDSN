@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowLeft, ChevronLeft, ChevronRight, Calendar as CalendarIcon, LayoutGrid, Plus, Trash2, ChefHat } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Calendar as CalendarIcon, LayoutGrid, Plus, Trash2, ChefHat, Edit2 } from "lucide-react";
 import Link from "next/link";
 import { db } from "@/lib/firebase/config";
 import { collection, query, orderBy, onSnapshot, where, doc, updateDoc } from "firebase/firestore";
@@ -27,7 +27,18 @@ export default function CookingPage() {
   const [usersMap, setUsersMap] = useState<Record<string, UserBasicInfo>>({});
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [isAssignOpen, setIsAssignOpen] = useState(false);
+  const [editingSchedule, setEditingSchedule] = useState<CookingSchedule | null>(null);
   const [group, setGroup] = useState<Group | null>(null);
+
+  const handleEdit = (sch: CookingSchedule) => {
+    setEditingSchedule(sch);
+    setIsAssignOpen(true);
+  };
+
+  const handleClose = () => {
+    setIsAssignOpen(false);
+    setEditingSchedule(null);
+  };
 
   useEffect(() => {
     if (!userData?.currentGroupId) return;
@@ -212,20 +223,30 @@ export default function CookingPage() {
                           </div>
                        </div>
 
-                       <div className="hidden md:flex flex-col items-end gap-3 shrink-0">
-                          <div className="px-4 py-2 bg-white/5 rounded-xl border border-white/5 text-[9px] font-black text-white/40 uppercase tracking-widest">
-                             Room {user?.room || "N/A"}
-                          </div>
-                          {isAdmin && (
-                            <button 
-                              onClick={() => handleDelete(sch.id)}
-                              className="w-10 h-10 rounded-xl bg-destructive/10 text-destructive border border-destructive/20 flex items-center justify-center hover:bg-destructive hover:text-white transition-all shadow-lg shadow-destructive/10"
-                            >
-                               <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
-                       </div>
-                    </div>
+                        <div className="hidden md:flex flex-col items-end gap-3 shrink-0">
+                           <div className="px-4 py-2 bg-white/5 rounded-xl border border-white/5 text-[9px] font-black text-white/40 uppercase tracking-widest">
+                              Room {user?.room || "N/A"}
+                           </div>
+                           <div className="flex gap-2">
+                            {isAdmin && (
+                                <button 
+                                onClick={() => handleEdit(sch)}
+                                className="w-10 h-10 rounded-xl bg-primary/10 text-primary border border-primary/20 flex items-center justify-center hover:bg-primary hover:text-white transition-all shadow-lg shadow-primary/10"
+                                >
+                                <Edit2 className="w-4 h-4" />
+                                </button>
+                            )}
+                            {isAdmin && (
+                                <button 
+                                onClick={() => handleDelete(sch.id)}
+                                className="w-10 h-10 rounded-xl bg-destructive/10 text-destructive border border-destructive/20 flex items-center justify-center hover:bg-destructive hover:text-white transition-all shadow-lg shadow-destructive/10"
+                                >
+                                <Trash2 className="w-4 h-4" />
+                                </button>
+                            )}
+                           </div>
+                        </div>
+                     </div>
                   </motion.div>
                 )
              })
@@ -276,7 +297,8 @@ export default function CookingPage() {
 
       <AssignCookingModal 
         isOpen={isAssignOpen} 
-        onClose={() => setIsAssignOpen(false)} 
+        onClose={handleClose} 
+        editSchedule={editingSchedule}
       />
     </div>
   );
