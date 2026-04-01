@@ -10,7 +10,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import { useCurrency } from "@/context/CurrencyContext";
 
-export function SettlePaymentModal({ isOpen, onClose, targetUserId }: { isOpen: boolean, onClose: () => void, targetUserId?: string }) {
+export function SettlePaymentModal({ isOpen, onClose, targetUserId, initialAmount }: { isOpen: boolean, onClose: () => void, targetUserId?: string, initialAmount?: number }) {
+
   const { userData } = useAuth();
   const { formatPrice } = useCurrency();
   const [users, setUsers] = useState<UserBasicInfo[]>([]);
@@ -29,10 +30,15 @@ export function SettlePaymentModal({ isOpen, onClose, targetUserId }: { isOpen: 
       if (targetUserId) {
         setToUser(targetUserId);
       }
+      if (initialAmount) {
+        setAmount(initialAmount.toString());
+      }
     } else if (!isOpen) {
       setToUser("");
+      setAmount("");
     }
-  }, [isOpen, userData?.uid, userData?.currentGroupId, targetUserId]);
+  }, [isOpen, userData?.uid, userData?.currentGroupId, targetUserId, initialAmount]);
+
 
   if (!isOpen) return null;
 

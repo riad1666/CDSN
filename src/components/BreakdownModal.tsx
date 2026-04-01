@@ -16,9 +16,13 @@ interface BreakdownModalProps {
     type: 'owe' | 'receive';
     list: BreakdownItem[];
     usersMap: Record<string, UserBasicInfo>;
+    onSettle?: (uid: string, amount: number) => void;
 }
 
-export function BreakdownModal({ isOpen, onClose, type, list, usersMap }: BreakdownModalProps) {
+
+
+export function BreakdownModal({ isOpen, onClose, type, list, usersMap, onSettle }: BreakdownModalProps) {
+
     const { formatPrice } = useCurrency();
 
     if (!isOpen) return null;
@@ -100,12 +104,25 @@ export function BreakdownModal({ isOpen, onClose, type, list, usersMap }: Breakd
                                                     </p>
                                                 </div>
                                             </div>
-                                            <div className="text-right">
-                                                <div className={`text-lg font-black tracking-tighter italic ${type === 'owe' ? 'text-destructive' : 'text-success'}`}>
-                                                    {type === 'owe' ? '-' : '+'}{formatPrice(item.amount)}
+                                            <div className="flex items-center gap-6">
+                                                <div className="text-right">
+                                                    <div className={`text-lg font-black tracking-tighter italic ${type === 'owe' ? 'text-destructive' : 'text-success'}`}>
+                                                        {type === 'owe' ? '-' : '+'}{formatPrice(item.amount)}
+                                                    </div>
+                                                    <div className="text-[8px] font-black text-white/20 uppercase tracking-[0.2em]">Pending Settlement</div>
                                                 </div>
-                                                <div className="text-[8px] font-black text-white/20 uppercase tracking-[0.2em]">Pending Settlement</div>
+                                                {type === 'owe' && onSettle && (
+                                                    <button 
+                                                        onClick={(e) => { e.stopPropagation(); onSettle(item.uid, item.amount); }}
+                                                        className="w-10 h-10 rounded-xl bg-primary/10 text-primary border border-primary/20 flex items-center justify-center hover:bg-primary hover:text-white transition-all group/btn shrink-0"
+                                                        title="Settle this debt"
+                                                    >
+
+                                                        <ArrowRight className="w-5 h-5 group-hover/btn:translate-x-0.5 transition-transform" />
+                                                    </button>
+                                                )}
                                             </div>
+
                                         </motion.div>
                                     );
                                 })

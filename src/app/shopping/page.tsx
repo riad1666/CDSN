@@ -11,6 +11,8 @@ import { useAuth } from "@/context/AuthContext";
 import { AddShoppingModal } from "@/components/AddShoppingModal";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCurrency } from "@/context/CurrencyContext";
+import { subscribeToUserGroups, Group } from "@/lib/firebase/firestore";
+
 
 interface ShoppingItem {
   id: string;
@@ -27,8 +29,10 @@ export default function ShoppingPage() {
   const [items, setItems] = useState<ShoppingItem[]>([]);
   const [isModalOpen, setModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<ShoppingItem | null>(null);
+  const [group, setGroup] = useState<Group | null>(null);
   const { userData } = useAuth();
   const { formatPrice } = useCurrency();
+
 
   useEffect(() => {
     if (!userData?.currentGroupId) return;
@@ -49,8 +53,22 @@ export default function ShoppingPage() {
       data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       setItems(data);
     });
-    return () => unsub();
-  }, [userData?.currentGroupId]);
+
+    // Subscribe to group data for role check
+    const unsubGroup = subscribeToUserGroups(userData.uid, (groups) => {
+        const current = groups.find(g => g.id === userData.currentGroupId);
+        if (current) setGroup(current);
+    });
+
+    return () => {
+        unsub();
+        unsubGroup();
+    };
+  }, [userData?.uid, userData?.currentGroupId]);
+
+  const userRole = group?.memberRoles?.[userData?.uid || ""] || "member";
+  const isAdmin = userRole === "admin" || userRole === "owner" || userData?.role === "superadmin";
+
 
   if (!userData?.currentGroupId) {
     return (
@@ -164,7 +182,8 @@ export default function ShoppingPage() {
                      <span className="px-4 py-2 bg-black/60 backdrop-blur-md rounded-xl text-[9px] font-black text-white/60 uppercase tracking-widest border border-white/10">
                         {item.date ? format(new Date(item.date), "MMM dd") : "N/D"}
                      </span>
-                     {(userData?.role === "admin" || userData?.role === "superadmin") && (
+                     {isAdmin && (
+
                         <button 
                           onClick={async (e) => {
                             e.stopPropagation();

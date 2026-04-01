@@ -41,6 +41,8 @@ export default function DashboardPage() {
   const [cookingDate, setCookingDate] = useState<string | null>(null);
   const [personalBalance, setPersonalBalance] = useState(0);
   const [quickSettleUser, setQuickSettleUser] = useState<string | null>(null);
+  const [quickSettleAmount, setQuickSettleAmount] = useState<number | null>(null);
+
   const [group, setGroup] = useState<Group | null>(null);
   const [isUpdatingCover, setIsUpdatingCover] = useState(false);
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
@@ -140,7 +142,7 @@ export default function DashboardPage() {
 
   const userRole = group?.memberRoles?.[userData?.uid || ""] || "member";
 
-  const isAdmin = userRole === "admin" || userRole === "owner";
+  const isAdmin = userRole === "admin" || userRole === "owner" || userData?.role === "superadmin";
 
   if (!userData?.currentGroupId) {
     return (
@@ -408,7 +410,7 @@ export default function DashboardPage() {
                         </div>
                      </div>
                      <div className="flex items-center gap-4">
-                        {act.type === 'expense' && act.data.paidBy === userData?.uid && (
+                        {act.type === 'expense' && (act.data.paidBy === userData?.uid || isAdmin) && (
                           <button 
                             onClick={() => setExpenseToEdit(act.data)}
                             className="p-2.5 bg-white/5 rounded-xl text-white/20 hover:text-white hover:bg-primary transition-all opacity-0 group-hover:opacity-100"
@@ -467,9 +469,11 @@ export default function DashboardPage() {
       <AddExpenseModal isOpen={isExpenseOpen} onClose={() => setExpenseOpen(false)} />
       <SettlePaymentModal 
         isOpen={isSettleOpen} 
-        onClose={() => { setSettleOpen(false); setQuickSettleUser(null); }} 
+        onClose={() => { setSettleOpen(false); setQuickSettleUser(null); setQuickSettleAmount(null); }} 
         targetUserId={quickSettleUser || undefined}
+        initialAmount={quickSettleAmount || undefined}
       />
+
       <ChangePasswordModal isOpen={isPasswordOpen} onClose={() => setPasswordOpen(false)} />
       
       <CreateNoticeModal 
@@ -485,7 +489,15 @@ export default function DashboardPage() {
         type={breakdownType || 'receive'}
         list={breakdownType === 'owe' ? oweList : receiveList}
         usersMap={usersMap}
+        onSettle={(uid, amount) => {
+          setQuickSettleUser(uid);
+          setQuickSettleAmount(amount);
+          setSettleOpen(true);
+          setBreakdownType(null);
+        }}
       />
+
+
 
       {expenseToEdit && (
         <EditExpenseModal 

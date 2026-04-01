@@ -85,7 +85,7 @@ export function ChatDrawer({ isOpen, onClose, chatId, chatName, type }: ChatDraw
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex justify-end pointer-events-none">
+    <div className="fixed inset-0 z-100 flex justify-end pointer-events-none">
       {/* Backdrop */}
       <motion.div
         initial={{ opacity: 0 }}
