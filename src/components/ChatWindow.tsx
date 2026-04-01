@@ -29,6 +29,13 @@ export function ChatWindow({ chatId, chatName, type }: ChatWindowProps) {
     const unsubMessages = subscribeToMessages(chatId, (data) => {
       setMessages(data);
       setLoading(false);
+    }, (err) => {
+      setLoading(false);
+      if (err?.code === 'failed-precondition') {
+        toast.error("Database indexes are still building. Please wait a few minutes.");
+      } else {
+        toast.error("Connection lost. Retrying...");
+      }
     });
 
     if (userData?.uid) {

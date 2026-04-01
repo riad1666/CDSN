@@ -33,6 +33,11 @@ export function ChatDrawer({ isOpen, onClose, chatId, chatName, type }: ChatDraw
     const unsubMessages = subscribeToMessages(chatId, (data) => {
       setMessages(data);
       setLoading(false);
+    }, (err) => {
+      setLoading(false);
+      if (err?.code === 'failed-precondition') {
+        toast.error("Database indexes are still building...");
+      }
     });
 
     // Mark as read once when opening or when chatId changes

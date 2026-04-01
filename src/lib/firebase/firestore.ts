@@ -464,7 +464,7 @@ export async function sendMessage(chatId: string, type: "group" | "private", sen
   });
 }
 
-export function subscribeToMessages(chatId: string, callback: (msgs: ChatMessage[]) => void) {
+export function subscribeToMessages(chatId: string, callback: (msgs: ChatMessage[]) => void, onError?: (err: any) => void) {
   const q = query(
     collection(db, "messages"),
     where("chatId", "==", chatId),
@@ -475,7 +475,7 @@ export function subscribeToMessages(chatId: string, callback: (msgs: ChatMessage
     callback(snap.docs.map(d => ({ id: d.id, ...d.data() } as ChatMessage)));
   }, (error) => {
     console.error("Firestore Error in subscribeToMessages:", error);
-    // If it's a missing index error, Firebase logs the link directly to the console.
+    if (onError) onError(error);
   });
 }
 
