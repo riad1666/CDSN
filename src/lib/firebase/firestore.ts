@@ -136,13 +136,20 @@ export const subscribeToExpenses = (callback: (expenses: Expense[]) => void, gro
   });
 };
 
+import { deleteDoc } from "firebase/firestore";
+
 export async function updateExpense(expenseId: string, data: Partial<Expense>): Promise<void> {
     await updateDoc(doc(db, "expenses", expenseId), data);
 }
 
 export async function deleteExpense(expenseId: string): Promise<void> {
-    await updateDoc(doc(db, "expenses", expenseId), { isDeleted: true });
+    await deleteDoc(doc(db, "expenses", expenseId));
 }
+
+export async function deleteShopping(shoppingId: string): Promise<void> {
+    await deleteDoc(doc(db, "shopping", shoppingId));
+}
+
 
 
 // --- SETTLEMENTS ---
@@ -279,7 +286,9 @@ export interface PersonalTrade {
     senderId: string;
     timestamp: any;
   };
+  isDeleted?: boolean;
 }
+
 
 export const subscribeToPersonalTrades = (uid: string, callback: (trades: PersonalTrade[]) => void, userRole?: string) => {
   const isSuperAdmin = userRole === "superadmin";
@@ -748,7 +757,7 @@ export function subscribeToAdminSettings(callback: (settings: any) => void) {
 
 // --- FINANCIAL MAINTENANCE (CLEANUP) ---
 
-export async function refreshFinancialData(): Promise<{ expensesFixed: number, tradesFixed: number }> {
+export async function refreshFinancialData(): Promise<{ expensesFixed: number, tradesFixed: number, purged: number }> {
     const adminUids = new Set<string>();
     const usersSnap = await getDocs(collection(db, "users"));
     usersSnap.forEach(d => {
@@ -756,13 +765,29 @@ export async function refreshFinancialData(): Promise<{ expensesFixed: number, t
         if (role === "admin" || role === "superadmin") adminUids.add(d.id);
     });
 
+    let purged = 0;
+    // COLLECTIONS TO CLEAN UP
+    const collectionsToPurge = ["expenses", "shopping", "settlements", "personalTrades"];
+    for(const colName of collectionsToPurge) {
+        const snap = await getDocs(collection(db, colName));
+        for(const d of snap.docs) {
+            if(d.data().isDeleted === true) {
+                await deleteDoc(d.ref);
+                purged++;
+            }
+        }
+    }
+
     let expensesFixed = 0;
     const expensesSnap = await getDocs(collection(db, "expenses"));
     for (const d of expensesSnap.docs) {
         const data = d.data() as Expense;
-        const newSplit = data.splitBetween.filter(uid => !adminUids.has(uid));
+        // Skip if document was just deleted above
+        if (!data || data.isDeleted) continue;
+
+        const newSplit = (data.splitBetween || []).filter(uid => !adminUids.has(uid));
         
-        if (newSplit.length !== data.splitBetween.length) {
+        if (newSplit.length !== (data.splitBetween || []).length) {
             await updateDoc(d.ref, { splitBetween: newSplit });
             expensesFixed++;
         }
@@ -772,14 +797,19 @@ export async function refreshFinancialData(): Promise<{ expensesFixed: number, t
     const tradesSnap = await getDocs(collection(db, "personalTrades"));
     for (const d of tradesSnap.docs) {
         const data = d.data() as PersonalTrade;
-        const hasAdmin = data.participants.some(uid => adminUids.has(uid));
+        if (!data || data.isDeleted) continue;
+
+        const pList = data.participants || [];
+        const hasAdmin = pList.some(uid => adminUids.has(uid));
         
         if (hasAdmin) {
-            await updateDoc(d.ref, { isDeleted: true });
+            await deleteDoc(d.ref);
             tradesFixed++;
         }
     }
 
-    return { expensesFixed, tradesFixed };
+    return { expensesFixed, tradesFixed, purged };
 }
+
+
 

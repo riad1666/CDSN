@@ -11,7 +11,8 @@ import { useAuth } from "@/context/AuthContext";
 import { AddShoppingModal } from "@/components/AddShoppingModal";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCurrency } from "@/context/CurrencyContext";
-import { subscribeToUserGroups, Group } from "@/lib/firebase/firestore";
+import { subscribeToUserGroups, Group, deleteShopping } from "@/lib/firebase/firestore";
+
 
 
 interface ShoppingItem {
@@ -188,7 +189,7 @@ export default function ShoppingPage() {
                           onClick={async (e) => {
                             e.stopPropagation();
                             if(confirm("Permanently remove this record?")) {
-                              await updateDoc(doc(db, "shopping", item.id), { isDeleted: true });
+                              await deleteShopping(item.id);
                               toast.success("Record expunged");
                             }
                           }}

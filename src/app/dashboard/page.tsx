@@ -132,13 +132,14 @@ export default function DashboardPage() {
     setIsRefreshing(true);
     try {
         const result = await refreshFinancialData();
-        toast.success(`Integrity Refresh Complete: ${result.expensesFixed} expenses and ${result.tradesFixed} trades recalculated.`);
+        toast.success(`Integrity protocol complete. ${result.purged} records purged, ${result.expensesFixed} expenses recalibrated, ${result.tradesFixed} trade links fixed.`, { duration: 5000 });
     } catch (err) {
-        toast.error("Integrity Refresh Failed");
+        toast.error("Integrity protocol failure");
     } finally {
         setIsRefreshing(false);
     }
   };
+
 
   const userRole = group?.memberRoles?.[userData?.uid || ""] || "member";
 
