@@ -5,14 +5,16 @@ import { useEffect, useState, useRef } from "react";
 import {
   Users, Shield, ShieldAlert, LogOut, UserMinus, Activity, Copy, Check,
   Clock, UserPlus, BarChart, PieChart, Loader2, Camera, ChevronDown, Pencil, X, Trash2,
-  Plus, Search, Key, RefreshCw
+  Plus, Search, Key, RefreshCw, ArrowRightLeft, CreditCard
 } from "lucide-react";
 import {
   Group, UserBasicInfo, ActivityLog, JoinRequest, Expense,
   subscribeToUserGroups, subscribeToGroupActivity, subscribeToJoinRequests,
   subscribeToExpenses, approveJoinRequest, rejectJoinRequest, leaveGroup, removeGroupMember,
-  createGroup, findGroupByCode, sendJoinRequest, updateGroupInviteCode, inviteUserToGroupByStudentId
+  createGroup, findGroupByCode, sendJoinRequest, updateGroupInviteCode, inviteUserToGroupByStudentId,
+  findOrCreatePersonalTrade, searchUsersByStudentId
 } from "@/lib/firebase/firestore";
+
 import { query, collection, where, getDocs, updateDoc, doc, arrayUnion, arrayRemove } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -86,10 +88,13 @@ export default function GroupProfilePage() {
   const [newGroupCode, setNewGroupCode] = useState("");
   const [savingCode, setSavingCode] = useState(false);
 
-  // Inviting
+  // Inviting & Trading
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [inviteStudentId, setInviteStudentId] = useState("");
   const [isInviting, setIsInviting] = useState(false);
+  const [tradeSearchId, setTradeSearchId] = useState("");
+  const [isTrading, setIsTrading] = useState(false);
+
 
   // Derived role
   const userId = userData?.uid || "";
@@ -302,6 +307,39 @@ export default function GroupProfilePage() {
       setIsInviting(false);
     }
   };
+
+  const handleStartTrade = async (targetUid: string) => {
+      if (!userData?.uid || targetUid === userData.uid) return;
+      try {
+          const tradeId = await findOrCreatePersonalTrade(userData.uid, targetUid);
+          router.push(`/chat?trade=${tradeId}`);
+      } catch {
+          toast.error("Failed to establish trade link");
+      }
+  };
+
+  const handleTradeSearch = async () => {
+      if (!tradeSearchId.trim() || !userData?.uid) return;
+      setIsTrading(true);
+      try {
+          const users = await searchUsersByStudentId(tradeSearchId.trim());
+          if (users.length === 0) {
+              toast.error("Agent not found in database");
+          } else {
+              const target = users[0];
+              if (target.role === "admin" || target.role === "superadmin") {
+                  return toast.error("System Admins are excluded from trade protocols");
+              }
+              const tradeId = await findOrCreatePersonalTrade(userData.uid, target.uid);
+              router.push(`/chat?trade=${tradeId}`);
+          }
+      } catch {
+          toast.error("Search protocol failed");
+      } finally {
+          setIsTrading(false);
+      }
+  };
+
 
   const startEditName = () => {
     setNewGroupName(group?.name || "");
@@ -661,7 +699,17 @@ export default function GroupProfilePage() {
                              }`}>
                                 {mRole}
                              </div>
+                             {!isMe && member.role === "user" && (
+                                <button 
+                                  onClick={() => handleStartTrade(member.uid)}
+                                  className="p-3 bg-indigo-500/10 text-indigo-400 rounded-xl hover:bg-indigo-500 hover:text-white transition-all flex items-center justify-center group/trade"
+                                  title="Personal Trade"
+                                >
+                                   <ArrowRightLeft className="w-4 h-4 group-hover/trade:scale-110 transition-transform" />
+                                </button>
+                             )}
                              {canManage && (
+
                                <div className="flex items-center gap-2 role-dropdown-container relative">
                                   <button onClick={() => setRoleDropdownOpen(prev => prev === member.uid ? null : member.uid)} className="p-3 bg-white/5 rounded-xl text-white/40 hover:text-white transition-all">
                                      <ChevronDown className={`w-4 h-4 transition-transform ${roleDropdownOpen === member.uid ? 'rotate-180' : ''}`} />

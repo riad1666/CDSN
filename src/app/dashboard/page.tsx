@@ -2,14 +2,16 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { Bell, TrendingUp, TrendingDown, DollarSign, User as UserIcon, Plus, Lock, ChefHat, LayoutGrid, Users, Loader2, Camera, Trash2, X, PlusCircle, ShoppingCart, ShieldCheck, Pencil, AlertTriangle } from "lucide-react";
+import { Bell, TrendingUp, TrendingDown, DollarSign, User as UserIcon, Plus, LayoutGrid, Users, Loader2, Camera, Trash2, X, PlusCircle, ShoppingCart, ShieldCheck, Pencil, AlertTriangle } from "lucide-react";
 import { subscribeToNotices, subscribeToExpenses, subscribeToSettlements, getApprovedUsers, Notice, Expense, Settlement, UserBasicInfo, Group, subscribeToUserGroups, updateGroupCoverPhoto, subscribeToAllUnread } from "@/lib/firebase/firestore";
 import { format } from "date-fns";
 import Link from "next/link";
-import { doc, updateDoc, collection, query, where, orderBy, onSnapshot } from "firebase/firestore";
+import { doc, updateDoc, collection, query, where, onSnapshot, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
+import { RefreshCcw } from "lucide-react";
+
 
 import { AddExpenseModal } from "@/components/AddExpenseModal";
 import { SettlePaymentModal } from "@/components/SettlePaymentModal";
@@ -19,8 +21,11 @@ import { CreateGroupModal } from "@/components/CreateGroupModal";
 import { JoinGroupModal } from "@/components/JoinGroupModal";
 import { updateGroupProfileImage } from "@/lib/firebase/firestore";
 import { ChatDrawer } from "@/components/ChatDrawer";
-import { MessageSquare } from "lucide-react";
 import { useCurrency } from "@/context/CurrencyContext";
+import { BreakdownModal } from "@/components/BreakdownModal";
+import { EditExpenseModal } from "@/components/EditExpenseModal";
+import { refreshFinancialData } from "@/lib/firebase/firestore";
+
 
 export default function DashboardPage() {
   const { userData } = useAuth();
@@ -45,7 +50,12 @@ export default function DashboardPage() {
   const [isJoinOpen, setJoinOpen] = useState(false);
   const [isChatOpen, setChatOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [breakdownType, setBreakdownType] = useState<'owe' | 'receive' | null>(null);
+  const [expenseToEdit, setExpenseToEdit] = useState<Expense | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  
   const coverInputRef = useRef<HTMLInputElement>(null);
+
   const profileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -84,6 +94,7 @@ export default function DashboardPage() {
         let bal = 0;
         snap.docs.forEach(doc => {
           const data = doc.data();
+          if (data.isDeleted) return;
           const balances = data.balances || {};
           const myBal = balances[userData.uid] || 0;
           bal += myBal;
@@ -114,61 +125,22 @@ export default function DashboardPage() {
     };
   }, [userData?.uid, userData?.currentGroupId]);
 
-  const userRole = group?.memberRoles?.[userData?.uid || ""] || "member";
-  const isAdmin = userRole === "admin" || userRole === "owner";
-
-  const handleCoverChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !userData?.currentGroupId) return;
-
-    if (file.size > 1.5 * 1024 * 1024) { // Slightly larger for covers
-        return toast.error("Cover image too large (max 1.5MB)");
-    }
-
-    setIsUpdatingCover(true);
-    const reader = new FileReader();
-    reader.onloadend = async () => {
-        const base64String = reader.result as string;
-        try {
-            await updateGroupCoverPhoto(userData.currentGroupId!, base64String);
-            toast.success("Cover photo updated!");
-        } catch (error) {
-            toast.error("Failed to update cover photo");
-        } finally {
-            setIsUpdatingCover(false);
-        }
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleProfileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !userData?.currentGroupId) return;
-
-    const reader = new FileReader();
-    reader.onloadend = async () => {
-      setIsUpdatingProfile(true);
-      try {
-        await updateGroupProfileImage(userData.currentGroupId!, reader.result as string);
-        toast.success("Group profile photo updated!");
-      } catch (error) {
-        toast.error("Failed to update group profile photo");
-      } finally {
-        setIsUpdatingProfile(false);
-      }
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleDeleteNotice = async (id: string) => {
-    if (!confirm("Remove this notice?")) return;
+  const handleRefreshData = async () => {
+    if (!isAdmin) return;
+    setIsRefreshing(true);
     try {
-        await updateDoc(doc(db, "notices", id), { isDeleted: true });
-        toast.success("Notice removed");
-    } catch (error) {
-        toast.error("Failed to remove notice");
+        const result = await refreshFinancialData();
+        toast.success(`Integrity Refresh Complete: ${result.expensesFixed} expenses and ${result.tradesFixed} trades recalculated.`);
+    } catch (err) {
+        toast.error("Integrity Refresh Failed");
+    } finally {
+        setIsRefreshing(false);
     }
   };
+
+  const userRole = group?.memberRoles?.[userData?.uid || ""] || "member";
+
+  const isAdmin = userRole === "admin" || userRole === "owner";
 
   if (!userData?.currentGroupId) {
     return (
@@ -189,7 +161,6 @@ export default function DashboardPage() {
                     <button onClick={() => setCreateOpen(true)} className="glass-button text-sm py-3 font-black tracking-widest uppercase">Create Group</button>
                     <button onClick={() => setJoinOpen(true)} className="glass-button-secondary text-sm py-3 bg-white/5 border border-white/10 font-black tracking-widest uppercase">Join Group</button>
                 </div>
-                
                 <CreateGroupModal isOpen={isCreateOpen} onClose={() => setCreateOpen(false)} />
                 <JoinGroupModal isOpen={isJoinOpen} onClose={() => setJoinOpen(false)} />
             </motion.div>
@@ -201,7 +172,7 @@ export default function DashboardPage() {
   let groupSpent = 0;
   const balances: Record<string, number> = {};
 
-  expenses.forEach(exp => {
+  expenses.filter(e => !e.isDeleted).forEach(exp => {
     groupSpent += exp.amount;
     const share = exp.amount / (exp.splitBetween.length || 1);
     const iAmInvolved = exp.splitBetween.includes(userData.uid);
@@ -235,14 +206,9 @@ export default function DashboardPage() {
 
   const receiveList = Object.entries(balances).filter(([uid, amt]) => amt > 0).map(([uid, amt]) => ({uid, amount: amt}));
   const oweList = Object.entries(balances).filter(([uid, amt]) => amt < 0).map(([uid, amt]) => ({uid, amount: Math.abs(amt)}));
-  const displayList = balanceTab === 'receive' ? receiveList : oweList;
-
-  const smartTip = balanceTab === 'owe' && oweList.length > 0 
-    ? oweList.sort((a,b) => b.amount - a.amount)[0]
-    : null;
 
   const activityList = [
-    ...expenses.map(e => ({ type: 'expense', date: e.date, data: e as any })),
+    ...expenses.filter(e => !e.isDeleted).map(e => ({ type: 'expense', date: e.date, data: e as any })),
     ...settlements.map(s => ({ type: 'settlement', date: s.date, data: s as any }))
   ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
    .slice(0, 5);
@@ -252,6 +218,16 @@ export default function DashboardPage() {
       case "IMPORTANT": return { bg: "bg-rose-500/10", border: "border-rose-500/30", tag: "bg-rose-500", text: "text-rose-400" };
       case "WARNING": return { bg: "bg-orange-500/10", border: "border-orange-500/30", tag: "bg-orange-500", text: "text-orange-400" };
       default: return { bg: "bg-blue-500/10", border: "border-blue-500/30", tag: "bg-blue-500", text: "text-blue-400" };
+    }
+  };
+
+  const handleDeleteNotice = async (id: string) => {
+    if (!confirm("Remove this notice?")) return;
+    try {
+        await updateDoc(doc(db, "notices", id), { isDeleted: true });
+        toast.success("Notice removed");
+    } catch (error) {
+        toast.error("Failed to remove notice");
     }
   };
 
@@ -268,8 +244,19 @@ export default function DashboardPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+           {isAdmin && (
+               <button 
+                onClick={handleRefreshData}
+                disabled={isRefreshing}
+                className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-all"
+                title="Refresh Financial Integrity"
+               >
+                 <RefreshCcw className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
+               </button>
+           )}
            <button 
              onClick={() => setExpenseOpen(true)}
+
              className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center text-white shadow-lg shadow-primary/30 hover:scale-105 active:scale-95 transition-all"
            >
              <Plus className="w-6 h-6" />
@@ -343,7 +330,6 @@ export default function DashboardPage() {
 
       {/* 3. Metrics Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Metric 1 */}
         <div className="glass-card rounded-[2.5rem] p-8 flex flex-col items-center text-center space-y-4 hover:border-info/30 transition-all group">
             <div className="w-14 h-14 rounded-2xl bg-info/20 flex items-center justify-center group-hover:scale-110 transition-transform">
               <span className="text-info font-black text-xl italic leading-none">$</span>
@@ -352,13 +338,12 @@ export default function DashboardPage() {
               <div className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">Total You Spent</div>
               <div className="text-3xl font-black text-white tracking-tighter italic">{formatPrice(totalSpent)}</div>
             </div>
-            <div className="flex items-center gap-1 text-[10px] font-bold text-success">
-               <TrendingUp className="w-3 h-3" /> +12% from last month
-            </div>
         </div>
 
-        {/* Metric 2 */}
-        <div className="glass-card rounded-[2.5rem] p-8 flex flex-col items-center text-center space-y-4 hover:border-success/30 transition-all group">
+        <div 
+          onClick={() => setBreakdownType('receive')}
+          className="glass-card rounded-[2.5rem] p-8 flex flex-col items-center text-center space-y-4 hover:border-success/30 cursor-pointer active:scale-95 transition-all group"
+        >
             <div className="w-14 h-14 rounded-2xl bg-success/20 flex items-center justify-center group-hover:scale-110 transition-transform">
               <TrendingUp className="w-6 h-6 text-success" />
             </div>
@@ -366,13 +351,13 @@ export default function DashboardPage() {
               <div className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">You Will Receive</div>
               <div className="text-3xl font-black text-success tracking-tighter italic">{formatPrice(totalReceive)}</div>
             </div>
-            <div className="flex items-center gap-1 text-[10px] font-bold text-success">
-               <TrendingUp className="w-3 h-3" /> +5% from last month
-            </div>
+            <p className="text-[10px] text-success/60 font-black uppercase tracking-widest">Click for details</p>
         </div>
 
-        {/* Metric 3 */}
-        <div className="glass-card rounded-[2.5rem] p-8 flex flex-col items-center text-center space-y-4 hover:border-destructive/30 transition-all group">
+        <div 
+          onClick={() => setBreakdownType('owe')}
+          className="glass-card rounded-[2.5rem] p-8 flex flex-col items-center text-center space-y-4 hover:border-destructive/30 cursor-pointer active:scale-95 transition-all group"
+        >
             <div className="w-14 h-14 rounded-2xl bg-destructive/20 flex items-center justify-center group-hover:scale-110 transition-transform">
               <TrendingDown className="w-6 h-6 text-destructive" />
             </div>
@@ -380,12 +365,9 @@ export default function DashboardPage() {
               <div className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">You Owe</div>
               <div className="text-3xl font-black text-destructive tracking-tighter italic">{formatPrice(totalOwe)}</div>
             </div>
-            <div className="flex items-center gap-1 text-[10px] font-bold text-destructive">
-               <TrendingDown className="w-3 h-3" /> -8% from last month
-            </div>
+            <p className="text-[10px] text-destructive/60 font-black uppercase tracking-widest">Click for details</p>
         </div>
 
-        {/* Metric 4 */}
         <div className="glass-card rounded-[2.5rem] p-8 flex flex-col items-center text-center space-y-4 hover:border-accent/30 transition-all group">
             <div className="w-14 h-14 rounded-2xl bg-accent/20 flex items-center justify-center group-hover:scale-110 transition-transform">
               <Users className="w-6 h-6 text-accent" />
@@ -393,9 +375,6 @@ export default function DashboardPage() {
             <div className="space-y-1">
               <div className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">Total Group Expense</div>
               <div className="text-3xl font-black text-white tracking-tighter italic">{formatPrice(groupSpent)}</div>
-            </div>
-            <div className="flex items-center gap-1 text-[10px] font-bold text-success">
-               <TrendingUp className="w-3 h-3" /> +15% from last month
             </div>
         </div>
       </div>
@@ -406,7 +385,6 @@ export default function DashboardPage() {
         <div className="lg:col-span-2 space-y-6">
            <div className="flex items-center justify-between px-2">
              <h2 className="text-2xl font-black text-white tracking-tight italic uppercase">Recent Activity</h2>
-             <button className="text-[10px] font-black text-primary hover:underline uppercase tracking-widest">View All</button>
            </div>
 
            <div className="glass-card rounded-[2.5rem] p-2 overflow-hidden">
@@ -430,6 +408,14 @@ export default function DashboardPage() {
                         </div>
                      </div>
                      <div className="flex items-center gap-4">
+                        {act.type === 'expense' && act.data.paidBy === userData?.uid && (
+                          <button 
+                            onClick={() => setExpenseToEdit(act.data)}
+                            className="p-2.5 bg-white/5 rounded-xl text-white/20 hover:text-white hover:bg-primary transition-all opacity-0 group-hover:opacity-100"
+                          >
+                             <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                         <div className="text-right hidden sm:block">
                            <div className="text-[10px] font-bold text-white uppercase opacity-40">{format(new Date(act.date), "h:mm a")}</div>
                            <div className="text-[11px] font-black text-white/20 uppercase tracking-widest">{format(new Date(act.date), "MMM dd")}</div>
@@ -450,42 +436,29 @@ export default function DashboardPage() {
 
         {/* Right: Unified Wallet */}
         <div className="space-y-6">
-           <div className="flex items-center justify-between px-2">
-             <h2 className="text-2xl font-black text-white tracking-tight italic uppercase">Unified Wallet</h2>
-             <button className="px-3 py-1 bg-white/5 rounded-lg text-[9px] font-black text-white/40 uppercase tracking-widest">Combined Balance</button>
-           </div>
-
+           <h2 className="text-2xl font-black text-white tracking-tight italic uppercase px-2">Unified Wallet</h2>
            <div className="glass-card rounded-[3rem] p-3 space-y-3">
-              {/* Group Balance */}
               <div className="glass-panel p-6 rounded-[2rem] border-white/5">
                  <div className="flex items-center justify-between mb-4">
                     <span className="text-[10px] font-black text-white/30 uppercase tracking-widest">Group Balance</span>
-                    <span className="text-[10px] font-black text-success uppercase">You will receive</span>
+                    <span className="text-[10px] font-black text-success uppercase">Calculated</span>
                  </div>
                  <div className="text-3xl font-black text-white tracking-tighter italic">{formatPrice(totalReceive - totalOwe)}</div>
-                 <div className="text-[10px] font-bold text-success/60 mt-2">Overall positive from group members</div>
               </div>
 
-              {/* Personal Balance */}
               <div className="glass-panel p-6 rounded-[2rem] border-white/5">
                  <div className="flex items-center justify-between mb-4">
                     <span className="text-[10px] font-black text-white/30 uppercase tracking-widest">Personal Balance</span>
-                    <span className="text-[10px] font-black text-destructive uppercase">You owe</span>
+                    <span className="text-[10px] font-black text-destructive uppercase">Pending</span>
                  </div>
                  <div className="text-3xl font-black text-white tracking-tighter italic">{formatPrice(personalBalance)}</div>
-                 <div className="text-[10px] font-bold text-destructive/60 mt-2">Active personal trades pending</div>
               </div>
 
-              {/* Net Balance */}
               <div className="glass-panel p-8 rounded-[2.5rem] border-primary/20 bg-primary/5">
-                 <div className="flex items-center justify-between mb-4">
-                    <span className="text-xs font-black text-white/40 uppercase tracking-widest">Net Balance</span>
-                    <div className="w-2 h-2 rounded-full bg-success"></div>
-                 </div>
+                 <span className="text-xs font-black text-white/40 uppercase tracking-widest block mb-4">Net Balance</span>
                  <div className="text-4xl font-black text-success tracking-tighter italic">
                     {((totalReceive - totalOwe) + personalBalance) >= 0 ? '+' : '-'}{formatPrice(Math.abs((totalReceive - totalOwe) + personalBalance))}
                  </div>
-                 <div className="text-xs font-bold text-white/40 mt-3 uppercase tracking-tighter">Overall positive performance</div>
               </div>
            </div>
         </div>
@@ -506,6 +479,22 @@ export default function DashboardPage() {
         noticeToEdit={noticeToEdit}
       />
 
+      <BreakdownModal 
+        isOpen={!!breakdownType}
+        onClose={() => setBreakdownType(null)}
+        type={breakdownType || 'receive'}
+        list={breakdownType === 'owe' ? oweList : receiveList}
+        usersMap={usersMap}
+      />
+
+      {expenseToEdit && (
+        <EditExpenseModal 
+          isOpen={!!expenseToEdit}
+          onClose={() => setExpenseToEdit(null)}
+          expense={expenseToEdit}
+        />
+      )}
+
       <ChatDrawer 
         isOpen={isChatOpen}
         onClose={() => setChatOpen(false)}
@@ -515,5 +504,4 @@ export default function DashboardPage() {
       />
     </div>
   );
-
 }

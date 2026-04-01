@@ -27,9 +27,9 @@ export function TradeSearchModal({ isOpen, onClose }: TradeSearchModalProps) {
     setIsSearching(true);
     try {
       const users = await searchUsersByStudentId(studentId.trim());
-      // Filter out self
-      setResults(users.filter(u => u.uid !== userData?.uid));
-      if (users.length === 0) toast.error("No users found with this Student ID");
+      // Filter out self and admins/superadmins
+      setResults(users.filter(u => u.uid !== userData?.uid && u.role !== "admin" && u.role !== "superadmin"));
+      if (users.length === 0) toast.error("No eligible users found with this Student ID");
     } catch (error) {
       toast.error("Search failed");
     } finally {

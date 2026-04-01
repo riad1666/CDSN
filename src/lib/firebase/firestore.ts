@@ -136,6 +136,15 @@ export const subscribeToExpenses = (callback: (expenses: Expense[]) => void, gro
   });
 };
 
+export async function updateExpense(expenseId: string, data: Partial<Expense>): Promise<void> {
+    await updateDoc(doc(db, "expenses", expenseId), data);
+}
+
+export async function deleteExpense(expenseId: string): Promise<void> {
+    await updateDoc(doc(db, "expenses", expenseId), { isDeleted: true });
+}
+
+
 // --- SETTLEMENTS ---
 export interface Settlement {
   id: string;
@@ -736,3 +745,41 @@ export function subscribeToAdminSettings(callback: (settings: any) => void) {
         callback(snap.data() || {});
     });
 }
+
+// --- FINANCIAL MAINTENANCE (CLEANUP) ---
+
+export async function refreshFinancialData(): Promise<{ expensesFixed: number, tradesFixed: number }> {
+    const adminUids = new Set<string>();
+    const usersSnap = await getDocs(collection(db, "users"));
+    usersSnap.forEach(d => {
+        const role = d.data().role;
+        if (role === "admin" || role === "superadmin") adminUids.add(d.id);
+    });
+
+    let expensesFixed = 0;
+    const expensesSnap = await getDocs(collection(db, "expenses"));
+    for (const d of expensesSnap.docs) {
+        const data = d.data() as Expense;
+        const newSplit = data.splitBetween.filter(uid => !adminUids.has(uid));
+        
+        if (newSplit.length !== data.splitBetween.length) {
+            await updateDoc(d.ref, { splitBetween: newSplit });
+            expensesFixed++;
+        }
+    }
+
+    let tradesFixed = 0;
+    const tradesSnap = await getDocs(collection(db, "personalTrades"));
+    for (const d of tradesSnap.docs) {
+        const data = d.data() as PersonalTrade;
+        const hasAdmin = data.participants.some(uid => adminUids.has(uid));
+        
+        if (hasAdmin) {
+            await updateDoc(d.ref, { isDeleted: true });
+            tradesFixed++;
+        }
+    }
+
+    return { expensesFixed, tradesFixed };
+}
+

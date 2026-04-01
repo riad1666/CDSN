@@ -56,7 +56,17 @@ export function AddShoppingModal({ isOpen, onClose }: { isOpen: boolean, onClose
       }
 
       const allMembers = await getGroupMembers(userData.currentGroupId);
-      const splitUids = allMembers.map(u => u.uid);
+      // Filter out admins and superadmins from splitting
+      const eligibleMembers = allMembers.filter(m => m.role !== "admin" && m.role !== "superadmin");
+      const splitUids = eligibleMembers.map(u => u.uid);
+      
+      // If the current user is an admin/superadmin, they can still pay, 
+      // but they won't be in the splitBetween as a debtor.
+      // If they are not an admin, they are in the splitBetween as a debtor.
+      if (userData?.role === "user" && !splitUids.includes(userData.uid)) {
+          // This case shouldn't happen with the filter above, but just in case
+          // Actually, 'user' role members should always be included if they exist.
+      }
       
       await addDoc(collection(db, "expenses"), {
         title: `Shopping: ${title}`,
