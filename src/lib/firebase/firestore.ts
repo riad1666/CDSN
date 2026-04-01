@@ -190,19 +190,74 @@ export interface GroupMember {
   joinedAt: string;
 }
 
-export const subscribeToUserGroups = (uid: string, callback: (groups: Group[]) => void) => {
-  const q = query(collection(db, "groups"), where("memberIds", "array-contains", uid));
+export const subscribeToUserGroups = (uid: string, callback: (groups: Group[]) => void, userRole?: string) => {
+  const isSuperAdmin = userRole === "superadmin";
+  const q = isSuperAdmin
+    ? query(collection(db, "groups"), where("isDeleted", "==", false))
+    : query(collection(db, "groups"), where("memberIds", "array-contains", uid), where("isDeleted", "==", false));
+
   return onSnapshot(q, (snapshot) => {
     const groups: Group[] = [];
     snapshot.forEach((doc) => {
-        const data = doc.data();
-        if (!data.isDeleted) {
-            groups.push({ ...data, id: doc.id } as Group);
-        }
+        groups.push({ ...doc.data(), id: doc.id } as Group);
     });
     callback(groups);
   });
 };
+
+export async function createGroup(name: string, ownerUid: string): Promise<string> {
+    const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+    
+    // Create the group
+    const groupRef = await addDoc(collection(db, "groups"), {
+        name,
+        profileImage: "",
+        inviteCode,
+        totalExpense: 0,
+        ownerId: ownerUid,
+        createdAt: new Date().toISOString(),
+        isDeleted: false,
+        memberIds: [ownerUid],
+        memberRoles: { [ownerUid]: "owner" }
+    });
+
+    // Update the owner's user document
+    await updateDoc(doc(db, "users", ownerUid), {
+        groupsJoined: arrayUnion(groupRef.id),
+        currentGroupId: groupRef.id
+    });
+
+    await writeGroupActivity(groupRef.id, "group_created", `Group "${name}" was created.`, ownerUid);
+    
+    return groupRef.id;
+}
+
+export async function findGroupByCode(code: string): Promise<Group | null> {
+    const q = query(collection(db, "groups"), where("inviteCode", "==", code), where("isDeleted", "==", false), limit(1));
+    const snap = await getDocs(q);
+    if (snap.empty) return null;
+    return { id: snap.docs[0].id, ...snap.docs[0].data() } as Group;
+}
+
+export async function updateGroupInviteCode(groupId: string, newCode: string): Promise<void> {
+    // Check uniqueness
+    const existing = await findGroupByCode(newCode);
+    if (existing && existing.id !== groupId) throw new Error("This Group ID is already taken.");
+    
+    await updateDoc(doc(db, "groups", groupId), { inviteCode: newCode });
+    await writeGroupActivity(groupId, "settings_updated", `Group ID was updated to ${newCode}.`);
+}
+
+export async function inviteUserToGroupByStudentId(groupId: string, senderId: string, studentId: string): Promise<void> {
+    const users = await searchUsersByStudentId(studentId);
+    if (users.length === 0) throw new Error("User not found.");
+    const targetUser = users[0];
+    
+    const groupNameSnap = await getDocs(query(collection(db, "groups"), where("__name__", "==", groupId)));
+    const groupName = groupNameSnap.empty ? "a group" : groupNameSnap.docs[0].data().name;
+
+    await writeNotification(targetUser.uid, "INVITE_RECEIVED", `You were invited to join "${groupName}" by Student ID ${studentId}`, { groupId, senderId });
+}
 
 // --- PERSONAL TRADES ---
 export interface PersonalTrade {
@@ -217,8 +272,12 @@ export interface PersonalTrade {
   };
 }
 
-export const subscribeToPersonalTrades = (uid: string, callback: (trades: PersonalTrade[]) => void) => {
-  const q = query(collection(db, "personalTrades"), where("participants", "array-contains", uid), orderBy("lastActivity", "desc"));
+export const subscribeToPersonalTrades = (uid: string, callback: (trades: PersonalTrade[]) => void, userRole?: string) => {
+  const isSuperAdmin = userRole === "superadmin";
+  const q = isSuperAdmin
+    ? query(collection(db, "personalTrades"), orderBy("lastActivity", "desc"))
+    : query(collection(db, "personalTrades"), where("participants", "array-contains", uid), orderBy("lastActivity", "desc"));
+
   return onSnapshot(q, (snapshot) => {
     const trades: PersonalTrade[] = [];
     snapshot.forEach((doc) => {

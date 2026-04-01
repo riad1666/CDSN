@@ -18,8 +18,9 @@ export default function ChatPage() {
   useEffect(() => {
     if (!userData?.uid) return;
     
-    const unsubGroups = subscribeToUserGroups(userData.uid, setGroups);
-    const unsubTrades = subscribeToPersonalTrades(userData.uid, setTrades);
+    // Pass user role for Superadmin global visibility
+    const unsubGroups = subscribeToUserGroups(userData.uid, setGroups, userData.role);
+    const unsubTrades = subscribeToPersonalTrades(userData.uid, setTrades, userData.role);
     
     getApprovedUsers().then(list => {
       const map: Record<string, UserBasicInfo> = {};
@@ -31,7 +32,7 @@ export default function ChatPage() {
        unsubGroups();
        unsubTrades();
     };
-  }, [userData?.uid]);
+  }, [userData?.uid, userData?.role]);
 
   if (!userData?.uid) return null;
 
