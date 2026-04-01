@@ -198,7 +198,9 @@ export interface Group {
     senderId: string;
     timestamp: any;
   };
+  lastResetDate?: string; // Financial Cycle Reset point
 }
+
 
 export interface GroupMember {
   userId: string;
@@ -247,6 +249,13 @@ export async function createGroup(name: string, ownerUid: string): Promise<strin
     
     return groupRef.id;
 }
+
+export async function resetGroupFinancialCycle(groupId: string): Promise<void> {
+    const now = new Date().toISOString();
+    await updateDoc(doc(db, "groups", groupId), { lastResetDate: now });
+    await writeGroupActivity(groupId, "cycle_reset", `A NEW FINANCIAL CYCLE WAS INITIALIZED. ALL BALANCES HAVE BEEN RESET TO ZERO.`, "SYSTEM");
+}
+
 
 export async function findGroupByCode(code: string): Promise<Group | null> {
     const q = query(collection(db, "groups"), where("inviteCode", "==", code), where("isDeleted", "==", false), limit(1));

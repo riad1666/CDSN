@@ -24,7 +24,8 @@ import { ChatDrawer } from "@/components/ChatDrawer";
 import { useCurrency } from "@/context/CurrencyContext";
 import { BreakdownModal } from "@/components/BreakdownModal";
 import { EditExpenseModal } from "@/components/EditExpenseModal";
-import { refreshFinancialData } from "@/lib/firebase/firestore";
+import { refreshFinancialData, resetGroupFinancialCycle } from "@/lib/firebase/firestore";
+
 
 
 export default function DashboardPage() {
@@ -140,6 +141,22 @@ export default function DashboardPage() {
     }
   };
 
+  const handleResetCycle = async () => {
+    if (!isAdmin || !userData.currentGroupId) return;
+    if (confirm("RESET FINANCIAL CYCLE? ALL CURRENT USER BALANCES (OWE/RECEIVE) WILL BE SET TO ZERO. HISTORY IS PRESERVED.")) {
+        setIsRefreshing(true);
+        try {
+            await resetGroupFinancialCycle(userData.currentGroupId);
+            toast.success("FINANCIAL CYCLE REFRESHED. BALANCES RESET.");
+        } catch (err) {
+            toast.error("PROTOCOL SHUTDOWN: RESET FAILED");
+        } finally {
+            setIsRefreshing(false);
+        }
+    }
+  };
+
+
 
   const userRole = group?.memberRoles?.[userData?.uid || ""] || "member";
 
@@ -171,11 +188,9 @@ export default function DashboardPage() {
     );
   }
 
-  let totalSpent = 0;
-  let groupSpent = 0;
-  const balances: Record<string, number> = {};
+  const lastReset = group?.lastResetDate ? new Date(group.lastResetDate).getTime() : 0;
 
-  expenses.filter(e => !e.isDeleted).forEach(exp => {
+  expenses.filter(e => !e.isDeleted && new Date(e.date).getTime() > lastReset).forEach(exp => {
     groupSpent += exp.amount;
     const share = exp.amount / (exp.splitBetween.length || 1);
     const iAmInvolved = exp.splitBetween.includes(userData.uid);
@@ -192,13 +207,14 @@ export default function DashboardPage() {
     }
   });
 
-  settlements.filter(s => s.status === "accepted").forEach(s => {
+  settlements.filter(s => s.status === "accepted" && new Date(s.date).getTime() > lastReset).forEach(s => {
     if (s.fromUser === userData.uid) {
       balances[s.toUser] = (balances[s.toUser] || 0) + s.amount;
     } else if (s.toUser === userData.uid) {
       balances[s.fromUser] = (balances[s.fromUser] || 0) - s.amount;
     }
   });
+
 
   let totalReceive = 0;
   let totalOwe = 0;
@@ -248,15 +264,26 @@ export default function DashboardPage() {
         </div>
         <div className="flex items-center gap-3">
            {isAdmin && (
-               <button 
-                onClick={handleRefreshData}
-                disabled={isRefreshing}
-                className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-all"
-                title="Refresh Financial Integrity"
-               >
-                 <RefreshCcw className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
-               </button>
+               <div className="flex items-center gap-2">
+                 <button 
+                  onClick={handleRefreshData}
+                  disabled={isRefreshing}
+                  className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-all"
+                  title="Refresh Financial Integrity"
+                 >
+                   <RefreshCcw className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
+                 </button>
+                 <button 
+                  onClick={handleResetCycle}
+                  disabled={isRefreshing}
+                  className="w-12 h-12 rounded-2xl bg-destructive/10 border border-destructive/20 flex items-center justify-center text-destructive hover:bg-destructive hover:text-white transition-all shadow-lg shadow-destructive/10"
+                  title="CLEAR ALL RECEIVE/OWE (Soft Reset)"
+                 >
+                   <Trash2 className={`w-5 h-5 ${isRefreshing ? 'animate-pulse' : ''}`} />
+                 </button>
+               </div>
            )}
+
            <button 
              onClick={() => setExpenseOpen(true)}
 
