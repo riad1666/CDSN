@@ -142,7 +142,7 @@ export default function DashboardPage() {
   };
 
   const handleResetCycle = async () => {
-    if (!isAdmin || !userData.currentGroupId) return;
+    if (!isAdmin || !userData?.currentGroupId) return;
     if (confirm("RESET FINANCIAL CYCLE? ALL CURRENT USER BALANCES (OWE/RECEIVE) WILL BE SET TO ZERO. HISTORY IS PRESERVED.")) {
         setIsRefreshing(true);
         try {
@@ -188,32 +188,37 @@ export default function DashboardPage() {
     );
   }
 
+  let totalSpent = 0;
+  let groupSpent = 0;
+  const balances: Record<string, number> = {};
   const lastReset = group?.lastResetDate ? new Date(group.lastResetDate).getTime() : 0;
 
   expenses.filter(e => !e.isDeleted && new Date(e.date).getTime() > lastReset).forEach(exp => {
     groupSpent += exp.amount;
     const share = exp.amount / (exp.splitBetween.length || 1);
-    const iAmInvolved = exp.splitBetween.includes(userData.uid);
-    const iPaid = exp.paidBy === userData.uid;
+    const iAmInvolved = userData && exp.splitBetween.includes(userData.uid);
+    const iPaid = userData && exp.paidBy === userData.uid;
 
     if (iAmInvolved) totalSpent += share;
 
-    if (iPaid) {
+    if (iPaid && userData) {
       exp.splitBetween.forEach(uid => {
         if (uid !== userData.uid) balances[uid] = (balances[uid] || 0) + share;
       });
-    } else if (iAmInvolved) {
+    } else if (iAmInvolved && userData) {
       balances[exp.paidBy] = (balances[exp.paidBy] || 0) - share;
     }
   });
 
+
   settlements.filter(s => s.status === "accepted" && new Date(s.date).getTime() > lastReset).forEach(s => {
-    if (s.fromUser === userData.uid) {
+    if (userData && s.fromUser === userData.uid) {
       balances[s.toUser] = (balances[s.toUser] || 0) + s.amount;
-    } else if (s.toUser === userData.uid) {
+    } else if (userData && s.toUser === userData.uid) {
       balances[s.fromUser] = (balances[s.fromUser] || 0) - s.amount;
     }
   });
+
 
 
   let totalReceive = 0;
