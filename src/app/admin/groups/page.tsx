@@ -18,9 +18,13 @@ import {
 import { getAllGroups } from "@/lib/firebase/firestore";
 import toast from "react-hot-toast";
 import { useCurrency } from "@/context/CurrencyContext";
+import { useAuth } from "@/context/AuthContext";
+import { useRouter } from "next/navigation";
 
 export default function GroupManagementPage() {
   const { formatPrice } = useCurrency();
+  const { setCurrentGroupId } = useAuth();
+  const router = useRouter();
   const [groups, setGroups] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<"card" | "table">("table");
@@ -45,6 +49,16 @@ export default function GroupManagementPage() {
     g.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
     g.ownerId?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const handleEnterGroup = async (groupId: string) => {
+    try {
+      await setCurrentGroupId(groupId);
+      toast.success("Entering Group with God Mode Permissions");
+      router.push("/dashboard");
+    } catch (e) {
+      toast.error("Failed to enter group context");
+    }
+  };
 
   return (
     <div className="space-y-10 pb-20">
@@ -140,7 +154,12 @@ export default function GroupManagementPage() {
                                 </td>
                                 <td className="px-8 py-5">
                                     <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button className="p-2.5 rounded-xl bg-white/5 border border-white/5 text-white/40 hover:text-purple-500 hover:border-purple-500/30 transition-all"><Eye className="w-4 h-4" /></button>
+                                        <button 
+                                            onClick={() => handleEnterGroup(group.id)}
+                                            className="p-2.5 rounded-xl bg-white/5 border border-white/5 text-white/40 hover:text-purple-500 hover:border-purple-500/30 transition-all shadow-lg"
+                                        >
+                                            <Eye className="w-4 h-4" />
+                                        </button>
                                         <button className="p-2.5 rounded-xl bg-white/5 border border-white/5 text-white/40 hover:text-purple-500 hover:border-purple-500/30 transition-all"><Edit3 className="w-4 h-4" /></button>
                                         <button className="p-2.5 rounded-xl bg-white/5 border border-white/5 text-white/40 hover:text-rose-500 hover:border-rose-500/30 transition-all"><Trash2 className="w-4 h-4" /></button>
                                     </div>
@@ -192,7 +211,10 @@ export default function GroupManagementPage() {
                         </div>
                     </div>
                     
-                    <button className="w-full mt-8 bg-white/5 border border-white/5 py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-white/60 hover:bg-purple-500 hover:text-white hover:border-purple-500 transition-all cursor-pointer">
+                    <button 
+                        onClick={() => handleEnterGroup(group.id)}
+                        className="w-full mt-8 bg-white/5 border border-white/5 py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-white/60 hover:bg-purple-500 hover:text-white hover:border-purple-500 transition-all cursor-pointer"
+                    >
                         Neural Cluster Interface
                     </button>
                 </div>

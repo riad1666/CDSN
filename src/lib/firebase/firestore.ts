@@ -1,4 +1,4 @@
-import { collection, query, orderBy, onSnapshot, getDocs, addDoc, updateDoc, setDoc, doc, where, limit, arrayRemove, arrayUnion, serverTimestamp, Timestamp } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot, getDocs, getDoc, addDoc, updateDoc, setDoc, doc, where, limit, arrayRemove, arrayUnion, serverTimestamp, Timestamp } from "firebase/firestore";
 import { db } from "./config";
 
 // --- NOTICES ---
@@ -178,6 +178,18 @@ export const subscribeToSettlements = (callback: (settlements: Settlement[]) => 
     settlements.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     callback(settlements);
   });
+};
+
+export const updateSettlementStatus = async (settlementId: string, status: "accepted" | "rejected", actorId: string): Promise<void> => {
+  const ref = doc(db, "settlements", settlementId);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) throw new Error("Settlement not found");
+  
+  const data = snap.data() as Settlement;
+  await updateDoc(ref, { status });
+  
+  const statusMsg = status === "accepted" ? "ACCEPTED" : "REJECTED";
+  await writeGroupActivity(data.groupId, "settlement_update", `Financial settlement ${statusMsg}.`, actorId);
 };
 
 // --- GROUPS ---

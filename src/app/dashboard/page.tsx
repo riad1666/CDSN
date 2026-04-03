@@ -24,7 +24,7 @@ import { ChatDrawer } from "@/components/ChatDrawer";
 import { useCurrency } from "@/context/CurrencyContext";
 import { BreakdownModal } from "@/components/BreakdownModal";
 import { EditExpenseModal } from "@/components/EditExpenseModal";
-import { refreshFinancialData, resetGroupFinancialCycle } from "@/lib/firebase/firestore";
+import { refreshFinancialData, resetGroupFinancialCycle, updateSettlementStatus } from "@/lib/firebase/firestore";
 
 
 
@@ -110,7 +110,7 @@ export default function DashboardPage() {
     const unsubGroup = subscribeToUserGroups(userData.uid, (groups) => {
         const current = groups.find(g => g.id === userData.currentGroupId);
         if (current) setGroup(current);
-    });
+    }, userData.role);
 
     // Subscribe to unread count
     const unsubUnread = subscribeToAllUnread(userData.uid, [userData.currentGroupId], (counts) => {
@@ -138,6 +138,15 @@ export default function DashboardPage() {
         toast.error("Integrity protocol failure");
     } finally {
         setIsRefreshing(false);
+    }
+  };
+
+  const handleSettlementAction = async (id: string, status: "accepted" | "rejected") => {
+    try {
+      await updateSettlementStatus(id, status, userData!.uid);
+      toast.success(`Settlement ${status}`);
+    } catch (err) {
+      toast.error("Action failed");
     }
   };
 
@@ -260,9 +269,16 @@ export default function DashboardPage() {
       {/* 1. Welcome Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-2">
         <div className="space-y-1">
-          <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight flex items-center gap-2">
-            Welcome back, {userData?.name?.split(' ')[0] || 'User'}! 👋
-          </h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight flex items-center gap-2">
+              Welcome back, {userData?.name?.split(' ')[0] || 'User'}! 👋
+            </h1>
+            {userData?.role === 'superadmin' && (
+              <span className="bg-linear-to-r from-purple-500 to-pink-500 text-white text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-[0_0_15px_rgba(168,85,247,0.3)] animate-pulse">
+                God Mode Active
+              </span>
+            )}
+          </div>
           <p className="text-white/40 font-medium text-sm md:text-base">
             Here's what's happening with your finances today
           </p>
@@ -458,6 +474,29 @@ export default function DashboardPage() {
                         <div className="w-10 h-10 rounded-full border-2 border-white/10 bg-white/5 flex items-center justify-center text-[10px] font-black text-white group-hover:border-primary transition-colors">
                            {usersMap[act.type === 'expense' ? act.data.paidBy : act.data.fromUser]?.name?.substring(0, 2).toUpperCase() || '??'}
                         </div>
+                        {act.type === 'settlement' && act.data.status === 'pending' && act.data.toUser === userData?.uid && (
+                          <div className="flex items-center gap-2 ml-4">
+                            <button 
+                              onClick={() => handleSettlementAction(act.data.id, 'accepted')}
+                              className="px-3 py-1.5 bg-success/20 text-success text-[9px] font-black uppercase tracking-widest rounded-lg hover:bg-success hover:text-white transition-all shadow-lg shadow-success/10"
+                            >
+                              Accept
+                            </button>
+                            <button 
+                              onClick={() => handleSettlementAction(act.data.id, 'rejected')}
+                              className="px-3 py-1.5 bg-rose-500/20 text-rose-400 text-[9px] font-black uppercase tracking-widest rounded-lg hover:bg-rose-500 hover:text-white transition-all shadow-lg shadow-rose-500/10"
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        )}
+                        {act.type === 'settlement' && act.data.status !== 'pending' && (
+                          <div className={`ml-4 px-2 py-1 rounded-md text-[8px] font-black uppercase tracking-tighter ${
+                            act.data.status === 'accepted' ? 'bg-success/10 text-success' : 'bg-rose-500/10 text-rose-400'
+                          }`}>
+                            {act.data.status}
+                          </div>
+                        )}
                      </div>
                    </div>
                  ))}
